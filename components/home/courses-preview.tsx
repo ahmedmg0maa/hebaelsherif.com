@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { listCatalogCourses } from "@/lib/catalog"
 
 export async function CoursesPreview() {
-  const courses = (await listCatalogCourses({ onlyActive: true, allowFallback: true })).slice(0, 3)
+  const courses = (await listCatalogCourses({ onlyActive: true })).slice(0, 3)
 
   return (
     <section className="section-padding" dir="rtl">

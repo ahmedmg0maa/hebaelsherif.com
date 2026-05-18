@@ -27,11 +27,10 @@ type AssistantStep = {
 const steps: Record<string, AssistantStep> = {
   start: {
     id: "start",
-    title: "Ai Chat",
-    answer: "اختاري ما يناسبك، ونرشدكِ للبداية الأنسب.",
+    title: "الدليل السريع",
+    answer: "اختاري المسار الذي يناسبك، وسنأخذك مباشرة للصفحة الصحيحة.",
     options: [
       { label: "أريد حجز جلسة خاصة", next: "booking" },
-      { label: "لا أعرف من أين أبدأ", next: "start-here" },
       { label: "أريد كورس مناسب", next: "courses" },
       { label: "أريد كتاب مناسب", next: "books" },
       { label: "أريد معرفة الأسعار", next: "pricing" },
@@ -39,35 +38,26 @@ const steps: Record<string, AssistantStep> = {
   },
   booking: {
     id: "booking",
-    title: "الجلسات",
-    answer: "يمكنكِ اختيار المدة والموعد المتاح ثم إكمال الحجز بخطوات واضحة.",
+    title: "الحجز",
+    answer: "يمكنكِ اختيار المدة واليوم والوقت المتاح ثم إرسال الطلب مباشرة.",
     actions: [{ label: "احجزي جلستك الخاصة", href: "/booking", variant: "primary" }],
-  },
-  "start-here": {
-    id: "start-here",
-    title: "ابدئي من هنا",
-    answer: "إن كنتِ في بداية الطريق، ابدئي بجلسة فردية أو تصفحي الخدمات لاختيار المسار الأقرب لكِ.",
-    actions: [
-      { label: "احجزي جلسة", href: "/booking", variant: "primary" },
-      { label: "استكشفي الخدمات", href: "/services", variant: "secondary" },
-    ],
   },
   courses: {
     id: "courses",
     title: "الكورسات",
-    answer: "تصفحي البرامج المتاحة واختاري الكورس المناسب لمرحلتك الحالية.",
+    answer: "تصفحي كل الكورسات المتاحة، والمنتج المدفوع فقط سيظهر في حسابك.",
     actions: [
       { label: "كل الكورسات", href: "/courses", variant: "primary" },
-      { label: "ابدئي من هنا", href: "/courses/efham-nafsak", variant: "secondary" },
+      { label: "الذهاب للحساب", href: "/account", variant: "secondary" },
     ],
   },
   books: {
     id: "books",
     title: "الكتب",
-    answer: "اختاري كتابًا يرافقكِ بهدوء ويمنحكِ بداية أوضح في هذه المرحلة.",
+    answer: "تصفحي الكتب المتاحة، وعند الدفع وتفعيل الطلب سيظهر التحميل داخل حسابك.",
     actions: [
       { label: "كل الكتب", href: "/books", variant: "primary" },
-      { label: "باب الخروج", href: "/books/bab-el-khorog", variant: "secondary" },
+      { label: "الذهاب للحساب", href: "/account", variant: "secondary" },
     ],
   },
   pricing: {
@@ -122,14 +112,14 @@ export function AIAssistant() {
           type="button"
           onClick={() => setOpen(true)}
           className="group flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-right shadow-lg transition hover:-translate-y-0.5"
-          aria-label="فتح Ai Chat"
+          aria-label="فتح الدليل السريع"
         >
           <span className="inline-flex size-8 items-center justify-center rounded-full bg-primary text-xs font-black text-primary-foreground">
-            Ai Chat
+            ؟
           </span>
           <span className="hidden sm:block">
-            <span className="block text-xs font-black text-foreground">Ai Chat</span>
-            <span className="block text-[10px] font-semibold text-muted-foreground">نرشدكِ للبداية الأنسب</span>
+            <span className="block text-xs font-black text-foreground">الدليل السريع</span>
+            <span className="block text-[10px] font-semibold text-muted-foreground">اختيارات مباشرة بدون تعقيد</span>
           </span>
         </button>
       ) : (
@@ -137,7 +127,7 @@ export function AIAssistant() {
           <header className="bg-primary px-3.5 py-2.5 text-primary-foreground">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <h2 className="text-xs font-black sm:text-sm">Ai Chat</h2>
+                <h2 className="text-xs font-black sm:text-sm">الدليل السريع</h2>
                 <p className="text-[11px] text-primary-foreground/85">مساحة هادئة للاختيار</p>
               </div>
               <div className="flex items-center gap-1.5">

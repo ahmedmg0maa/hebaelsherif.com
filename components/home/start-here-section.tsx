@@ -53,7 +53,7 @@ export function StartHereSection() {
                 مساحة هادئة للاختيار
               </p>
               <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                Ai Chat يساعدكِ على اختيار البداية الأنسب عبر مسارات قصيرة وواضحة.
+                AI يساعدكِ على اختيار البداية الأنسب عبر مسارات قصيرة وواضحة.
               </p>
               <span className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-accent">
                 <MessageCircleHeart className="h-4 w-4" />

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { listCatalogBooks } from "@/lib/catalog"
 
 export async function BooksPreview() {
-  const books = (await listCatalogBooks({ onlyActive: true, allowFallback: true })).slice(0, 4)
+  const books = (await listCatalogBooks({ onlyActive: true })).slice(0, 4)
 
   return (
     <section className="section-padding bg-secondary/30" dir="rtl">

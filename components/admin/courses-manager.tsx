@@ -36,6 +36,13 @@ type FormState = {
   status: "active" | "draft" | "hidden"
 }
 
+type UploadState = {
+  loading: boolean
+  progress: number
+  error: string
+  success: string
+}
+
 const initialForm: FormState = {
   id: "",
   title: "",
@@ -50,6 +57,13 @@ const initialForm: FormState = {
   status: "active",
 }
 
+const initialUploadState: UploadState = {
+  loading: false,
+  progress: 0,
+  error: "",
+  success: "",
+}
+
 function toSlug(value: string) {
   return value
     .toLowerCase()
@@ -57,6 +71,55 @@ function toSlug(value: string) {
     .replace(/[^a-z0-9\u0600-\u06FF\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
+}
+
+function entityIdFromForm(form: FormState) {
+  return toSlug(form.id || form.slug || form.title) || "course"
+}
+
+function uploadAdminFile(params: {
+  file: File
+  folder: string
+  entityId: string
+  onProgress: (progress: number) => void
+}) {
+  const { file, folder, entityId, onProgress } = params
+  return new Promise<string>((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("folder", folder)
+    formData.append("entityId", entityId)
+
+    request.open("POST", "/api/admin/uploads")
+
+    request.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return
+      onProgress(Math.max(1, Math.min(100, Math.round((event.loaded / event.total) * 100))))
+    }
+
+    request.onerror = () => reject(new Error("تعذر رفع الملف."))
+    request.onabort = () => reject(new Error("تم إلغاء الرفع."))
+    request.onload = () => {
+      let payload: { ok?: boolean; message?: string; url?: string } = {}
+      try {
+        payload = JSON.parse(request.responseText || "{}") as { ok?: boolean; message?: string; url?: string }
+      } catch {
+        reject(new Error("تعذر قراءة نتيجة الرفع."))
+        return
+      }
+
+      if (request.status < 200 || request.status >= 300 || !payload.ok || !payload.url) {
+        reject(new Error(payload.message || "تعذر رفع الملف."))
+        return
+      }
+
+      onProgress(100)
+      resolve(payload.url)
+    }
+
+    request.send(formData)
+  })
 }
 
 export function CoursesManager() {
@@ -67,6 +130,8 @@ export function CoursesManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
+  const [coverUpload, setCoverUpload] = useState<UploadState>(initialUploadState)
+  const [materialUpload, setMaterialUpload] = useState<UploadState>(initialUploadState)
 
   const isEditing = useMemo(() => Boolean(editingId), [editingId])
 
@@ -89,6 +154,48 @@ export function CoursesManager() {
   useEffect(() => {
     void loadCourses()
   }, [])
+
+  async function handleCoverUpload(file: File) {
+    setCoverUpload({ loading: true, progress: 0, error: "", success: "" })
+    try {
+      const url = await uploadAdminFile({
+        file,
+        folder: "courses/covers",
+        entityId: entityIdFromForm(form),
+        onProgress: (progress) => setCoverUpload((prev) => ({ ...prev, progress })),
+      })
+      setForm((prev) => ({ ...prev, coverImageUrl: url }))
+      setCoverUpload((prev) => ({ ...prev, loading: false, success: "تم رفع غلاف الكورس بنجاح." }))
+    } catch (uploadError) {
+      setCoverUpload({
+        loading: false,
+        progress: 0,
+        error: uploadError instanceof Error ? uploadError.message : "تعذر رفع الغلاف.",
+        success: "",
+      })
+    }
+  }
+
+  async function handleMaterialUpload(file: File) {
+    setMaterialUpload({ loading: true, progress: 0, error: "", success: "" })
+    try {
+      const url = await uploadAdminFile({
+        file,
+        folder: "courses/materials",
+        entityId: entityIdFromForm(form),
+        onProgress: (progress) => setMaterialUpload((prev) => ({ ...prev, progress })),
+      })
+      setForm((prev) => ({ ...prev, accessUrl: url }))
+      setMaterialUpload((prev) => ({ ...prev, loading: false, success: "تم رفع ملف المادة بنجاح." }))
+    } catch (uploadError) {
+      setMaterialUpload({
+        loading: false,
+        progress: 0,
+        error: uploadError instanceof Error ? uploadError.message : "تعذر رفع ملف المادة.",
+        success: "",
+      })
+    }
+  }
 
   async function submitForm(event: React.FormEvent) {
     event.preventDefault()
@@ -123,6 +230,8 @@ export function CoursesManager() {
       setMessage(isEditing ? "تم تحديث الكورس." : "تم إضافة الكورس.")
       setForm(initialForm)
       setEditingId(null)
+      setCoverUpload(initialUploadState)
+      setMaterialUpload(initialUploadState)
       await loadCourses()
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "تعذر حفظ البيانات.")
@@ -146,6 +255,8 @@ export function CoursesManager() {
       accessUrl: item.accessUrl || "",
       status: item.status || "active",
     })
+    setCoverUpload(initialUploadState)
+    setMaterialUpload(initialUploadState)
     setMessage("")
     setError("")
   }
@@ -180,6 +291,8 @@ export function CoursesManager() {
       if (editingId === id) {
         setEditingId(null)
         setForm(initialForm)
+        setCoverUpload(initialUploadState)
+        setMaterialUpload(initialUploadState)
       }
       await loadCourses()
     } catch (deleteError) {
@@ -204,7 +317,7 @@ export function CoursesManager() {
                 id="course-id"
                 value={form.id}
                 onChange={(event) => setForm((prev) => ({ ...prev, id: event.target.value }))}
-                placeholder="efham-nafsak"
+                placeholder="course-id"
                 disabled={isEditing}
               />
             </div>
@@ -214,7 +327,7 @@ export function CoursesManager() {
                 id="course-slug"
                 value={form.slug}
                 onChange={(event) => setForm((prev) => ({ ...prev, slug: event.target.value }))}
-                placeholder="efham-nafsak"
+                placeholder="course-id"
               />
             </div>
           </div>
@@ -280,24 +393,65 @@ export function CoursesManager() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="course-image">رابط الغلاف</Label>
-              <Input
-                id="course-image"
-                value={form.coverImageUrl}
-                onChange={(event) => setForm((prev) => ({ ...prev, coverImageUrl: event.target.value }))}
-                placeholder="https://..."
+          <div className="space-y-2">
+            <Label htmlFor="course-image">رابط الغلاف</Label>
+            <Input
+              id="course-image"
+              value={form.coverImageUrl}
+              onChange={(event) => setForm((prev) => ({ ...prev, coverImageUrl: event.target.value }))}
+              placeholder="https://..."
+            />
+            <div className="rounded-xl border border-dashed border-border bg-secondary/25 p-3">
+              <Label htmlFor="course-cover-upload" className="text-sm">
+                أو ارفعي صورة الغلاف مباشرة إلى Firebase Storage
+              </Label>
+              <input
+                id="course-cover-upload"
+                type="file"
+                accept="image/*"
+                className="mt-2 block w-full text-sm"
+                disabled={coverUpload.loading}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) void handleCoverUpload(file)
+                  event.currentTarget.value = ""
+                }}
               />
+              {coverUpload.loading ? <p className="mt-2 text-xs text-muted-foreground">جاري رفع الغلاف... {coverUpload.progress}%</p> : null}
+              {coverUpload.error ? <p className="mt-2 text-xs font-bold text-destructive">{coverUpload.error}</p> : null}
+              {coverUpload.success ? <p className="mt-2 text-xs font-bold text-accent">{coverUpload.success}</p> : null}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="course-access">رابط الدخول</Label>
-              <Input
-                id="course-access"
-                value={form.accessUrl}
-                onChange={(event) => setForm((prev) => ({ ...prev, accessUrl: event.target.value }))}
-                placeholder="https://..."
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="course-access">رابط الدخول (accessUrl)</Label>
+            <Input
+              id="course-access"
+              value={form.accessUrl}
+              onChange={(event) => setForm((prev) => ({ ...prev, accessUrl: event.target.value }))}
+              placeholder="https://..."
+            />
+            <div className="rounded-xl border border-dashed border-border bg-secondary/25 p-3">
+              <Label htmlFor="course-material-upload" className="text-sm">
+                أو ارفعي ملف مادة الكورس (اختياري)
+              </Label>
+              <input
+                id="course-material-upload"
+                type="file"
+                accept=".pdf,.zip,.doc,.docx,.ppt,.pptx,image/*,video/*"
+                className="mt-2 block w-full text-sm"
+                disabled={materialUpload.loading}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) void handleMaterialUpload(file)
+                  event.currentTarget.value = ""
+                }}
               />
+              {materialUpload.loading ? (
+                <p className="mt-2 text-xs text-muted-foreground">جاري رفع المادة... {materialUpload.progress}%</p>
+              ) : null}
+              {materialUpload.error ? <p className="mt-2 text-xs font-bold text-destructive">{materialUpload.error}</p> : null}
+              {materialUpload.success ? <p className="mt-2 text-xs font-bold text-accent">{materialUpload.success}</p> : null}
             </div>
           </div>
 
@@ -327,6 +481,8 @@ export function CoursesManager() {
                 onClick={() => {
                   setEditingId(null)
                   setForm(initialForm)
+                  setCoverUpload(initialUploadState)
+                  setMaterialUpload(initialUploadState)
                 }}
               >
                 إلغاء التعديل
