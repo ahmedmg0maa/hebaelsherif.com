@@ -1,0 +1,50 @@
+import Link from "next/link"
+import { ArrowRight } from "lucide-react"
+
+const sectionLinks: Record<string, { title: string; href: string; description: string }> = {
+  bookings: {
+    title: "الحجوزات",
+    href: "/admin/bookings",
+    description: "عرض المواعيد، متابعة الحالة، والتصفية بالتاريخ.",
+  },
+  orders: {
+    title: "الطلبات",
+    href: "/admin/orders",
+    description: "إدارة حالات الطلبات ومراجعة بيانات العملاء.",
+  },
+  messages: {
+    title: "الرسائل",
+    href: "/admin/messages",
+    description: "مراجعة رسائل الزوار ومتابعة الاستفسارات.",
+  },
+}
+
+type PageProps = { params: Promise<{ section: string }> }
+
+export default async function AdminSectionPage({ params }: PageProps) {
+  const { section } = await params
+  const sectionData = sectionLinks[section]
+
+  return (
+    <div className="space-y-6" dir="rtl">
+      <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+        <h1 className="text-3xl font-black text-foreground">
+          {sectionData ? sectionData.title : "قسم الإدارة غير متاح"}
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          {sectionData
+            ? sectionData.description
+            : "يمكنكِ العودة إلى الأقسام الأساسية: الحجوزات، الطلبات، أو الرسائل."}
+        </p>
+      </div>
+
+      <Link
+        href={sectionData?.href || "/admin"}
+        className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-bold text-foreground transition hover:border-accent hover:text-accent"
+      >
+        الانتقال الآن
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </div>
+  )
+}
