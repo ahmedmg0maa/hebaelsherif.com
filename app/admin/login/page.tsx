@@ -1,21 +1,40 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { AlertCircle, Eye, EyeOff, Lock } from "lucide-react"
+import { AlertCircle, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [setupMode, setSetupMode] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const setupMode = searchParams.get("setup") === "1"
+
+  useEffect(() => {
+    const querySetup = searchParams.get("setup") === "1"
+    setSetupMode(querySetup)
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/admin/login/session", { cache: "no-store" })
+        const result = await response.json()
+        if (!result.configured) setSetupMode(true)
+        if (result.authenticated) {
+          router.replace("/admin")
+        }
+      } catch {
+        // Keep login form visible on network errors
+      }
+    }
+
+    void checkSession()
+  }, [router, searchParams])
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
@@ -51,12 +70,12 @@ export default function AdminLoginPage() {
           <p className="mt-2 text-muted-foreground">لوحة الإدارة</p>
         </div>
 
-          <div className="rounded-[2rem] border border-border bg-card p-6 shadow-xl sm:p-8">
+        <div className="rounded-[2rem] border border-border bg-card p-6 shadow-xl sm:p-8">
           <h1 className="mb-6 text-center text-2xl font-black text-foreground">دخول الإدارة</h1>
 
           {setupMode ? (
             <div className="mb-5 rounded-2xl border border-accent/30 bg-accent/10 p-3 text-sm text-foreground">
-              لتفعيل لوحة الإدارة، أضيفي متغير البيئة <code>ADMIN_PASSWORD</code> ثم أعيدي تشغيل التطبيق.
+              لم يتم تفعيل لوحة الإدارة بعد.
             </div>
           ) : null}
 
@@ -73,21 +92,13 @@ export default function AdminLoginPage() {
                 <Lock className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="h-12 rounded-2xl bg-background px-10"
+                  className="h-12 rounded-2xl bg-background pr-10"
                   placeholder="أدخلي كلمة مرور الإدارة"
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((value) => !value)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  aria-label="إظهار كلمة المرور"
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
               </div>
             </div>
 

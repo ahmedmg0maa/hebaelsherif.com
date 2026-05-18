@@ -1,0 +1,351 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+type BookRecord = {
+  id: string
+  title: string
+  slug: string
+  description: string
+  shortDescription: string
+  price: number
+  coverImageUrl: string
+  fileUrl?: string
+  status: "active" | "draft" | "hidden"
+  createdAt?: string
+}
+
+type FormState = {
+  id: string
+  title: string
+  slug: string
+  shortDescription: string
+  description: string
+  price: string
+  coverImageUrl: string
+  fileUrl: string
+  status: "active" | "draft" | "hidden"
+}
+
+const initialForm: FormState = {
+  id: "",
+  title: "",
+  slug: "",
+  shortDescription: "",
+  description: "",
+  price: "",
+  coverImageUrl: "",
+  fileUrl: "",
+  status: "active",
+}
+
+function toSlug(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\u0600-\u06FF\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+}
+
+export function BooksManager() {
+  const [items, setItems] = useState<BookRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState<FormState>(initialForm)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [message, setMessage] = useState("")
+  const [error, setError] = useState("")
+
+  const isEditing = useMemo(() => Boolean(editingId), [editingId])
+
+  async function loadBooks() {
+    setLoading(true)
+    setError("")
+    try {
+      const response = await fetch("/api/admin/books", { cache: "no-store" })
+      const data = await response.json()
+      if (!response.ok || !data.ok) throw new Error(data.message || "تعذر تحميل الكتب.")
+      setItems(Array.isArray(data.books) ? data.books : [])
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "تعذر تحميل الكتب.")
+      setItems([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadBooks()
+  }, [])
+
+  async function submitForm(event: React.FormEvent) {
+    event.preventDefault()
+    setSaving(true)
+    setError("")
+    setMessage("")
+
+    const payload = {
+      id: toSlug(form.id || form.slug || form.title),
+      title: form.title.trim(),
+      slug: toSlug(form.slug || form.id || form.title),
+      shortDescription: form.shortDescription.trim(),
+      description: form.description.trim(),
+      price: Number(form.price || 0),
+      coverImageUrl: form.coverImageUrl.trim(),
+      fileUrl: form.fileUrl.trim(),
+      status: form.status,
+    }
+
+    try {
+      const endpoint = isEditing ? `/api/admin/books/${encodeURIComponent(editingId || "")}` : "/api/admin/books"
+      const method = isEditing ? "PATCH" : "POST"
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.ok) throw new Error(data.message || "تعذر حفظ البيانات.")
+      setMessage(isEditing ? "تم تحديث الكتاب." : "تم إضافة الكتاب.")
+      setForm(initialForm)
+      setEditingId(null)
+      await loadBooks()
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "تعذر حفظ البيانات.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function startEdit(item: BookRecord) {
+    setEditingId(item.id)
+    setForm({
+      id: item.id,
+      title: item.title || "",
+      slug: item.slug || item.id,
+      shortDescription: item.shortDescription || "",
+      description: item.description || "",
+      price: String(item.price ?? ""),
+      coverImageUrl: item.coverImageUrl || "",
+      fileUrl: item.fileUrl || "",
+      status: item.status || "active",
+    })
+    setMessage("")
+    setError("")
+  }
+
+  async function changeStatus(id: string, status: "active" | "draft" | "hidden") {
+    setError("")
+    setMessage("")
+    try {
+      const response = await fetch(`/api/admin/books/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.ok) throw new Error(data.message || "تعذر تحديث الحالة.")
+      setMessage("تم تحديث الحالة.")
+      await loadBooks()
+    } catch (statusError) {
+      setError(statusError instanceof Error ? statusError.message : "تعذر تحديث الحالة.")
+    }
+  }
+
+  async function removeBook(id: string) {
+    if (!globalThis.confirm("هل تريد حذف هذا الكتاب؟")) return
+    setError("")
+    setMessage("")
+    try {
+      const response = await fetch(`/api/admin/books/${encodeURIComponent(id)}`, { method: "DELETE" })
+      const data = await response.json()
+      if (!response.ok || !data.ok) throw new Error(data.message || "تعذر حذف الكتاب.")
+      setMessage("تم حذف الكتاب.")
+      if (editingId === id) {
+        setEditingId(null)
+        setForm(initialForm)
+      }
+      await loadBooks()
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "تعذر حذف الكتاب.")
+    }
+  }
+
+  return (
+    <div className="space-y-6" dir="rtl">
+      <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+        <h1 className="text-3xl font-black text-foreground">إدارة الكتب</h1>
+        <p className="mt-2 text-muted-foreground">إضافة وتعديل وإخفاء الكتب من Firebase.</p>
+      </section>
+
+      <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+        <h2 className="text-2xl font-black text-foreground">{isEditing ? "تعديل كتاب" : "إضافة كتاب جديد"}</h2>
+        <form className="mt-5 grid gap-4" onSubmit={submitForm}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="book-id">المعرف</Label>
+              <Input
+                id="book-id"
+                value={form.id}
+                onChange={(event) => setForm((prev) => ({ ...prev, id: event.target.value }))}
+                placeholder="bab-el-khorog"
+                disabled={isEditing}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="book-slug">Slug</Label>
+              <Input
+                id="book-slug"
+                value={form.slug}
+                onChange={(event) => setForm((prev) => ({ ...prev, slug: event.target.value }))}
+                placeholder="bab-el-khorog"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="book-title">العنوان</Label>
+            <Input
+              id="book-title"
+              value={form.title}
+              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="book-short">الوصف المختصر</Label>
+            <Input
+              id="book-short"
+              value={form.shortDescription}
+              onChange={(event) => setForm((prev) => ({ ...prev, shortDescription: event.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="book-description">الوصف الكامل</Label>
+            <Textarea
+              id="book-description"
+              value={form.description}
+              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+              className="min-h-24"
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="book-price">السعر</Label>
+              <Input
+                id="book-price"
+                type="number"
+                min={0}
+                value={form.price}
+                onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>الحالة</Label>
+              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as FormState["status"] }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">active</SelectItem>
+                  <SelectItem value="draft">draft</SelectItem>
+                  <SelectItem value="hidden">hidden</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="book-image">رابط الغلاف</Label>
+            <Input
+              id="book-image"
+              value={form.coverImageUrl}
+              onChange={(event) => setForm((prev) => ({ ...prev, coverImageUrl: event.target.value }))}
+              placeholder="https://..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="book-file">رابط الملف (fileUrl)</Label>
+            <Input
+              id="book-file"
+              value={form.fileUrl}
+              onChange={(event) => setForm((prev) => ({ ...prev, fileUrl: event.target.value }))}
+              placeholder="https://..."
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" disabled={saving} className="rounded-full">
+              {saving ? "جاري الحفظ..." : isEditing ? "حفظ التعديلات" : "إضافة الكتاب"}
+            </Button>
+            {isEditing ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full bg-transparent"
+                onClick={() => {
+                  setEditingId(null)
+                  setForm(initialForm)
+                }}
+              >
+                إلغاء التعديل
+              </Button>
+            ) : null}
+          </div>
+        </form>
+
+        {error ? <p className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm font-bold text-destructive">{error}</p> : null}
+        {message ? <p className="mt-4 rounded-xl border border-accent/30 bg-accent/10 p-3 text-sm font-bold">{message}</p> : null}
+      </section>
+
+      <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+        <h2 className="text-2xl font-black text-foreground">الكتب الحالية</h2>
+        {loading ? <p className="mt-4 text-muted-foreground">جاري التحميل...</p> : null}
+        {!loading && items.length === 0 ? <p className="mt-4 text-muted-foreground">لا توجد كتب بعد.</p> : null}
+
+        <div className="mt-4 grid gap-3">
+          {items.map((item) => (
+            <article key={item.id} className="rounded-2xl border border-border bg-background p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-bold text-foreground">{item.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.slug} · {item.price?.toLocaleString("en-US")} EGP · {item.status}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{item.fileUrl ? "ملف متاح" : "بدون ملف"}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" className="rounded-full" onClick={() => startEdit(item)}>
+                    تعديل
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="rounded-full bg-transparent" onClick={() => changeStatus(item.id, "active")}>
+                    تفعيل
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="rounded-full bg-transparent" onClick={() => changeStatus(item.id, "draft")}>
+                    Draft
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="rounded-full bg-transparent" onClick={() => changeStatus(item.id, "hidden")}>
+                    إخفاء
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="rounded-full bg-transparent text-destructive" onClick={() => removeBook(item.id)}>
+                    حذف
+                  </Button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}

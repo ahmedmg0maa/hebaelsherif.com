@@ -13,10 +13,7 @@ function text(value: unknown) {
 
 export async function POST(request: Request) {
   if (!hasConfiguredAdminPassword()) {
-    return NextResponse.json(
-      { ok: false, message: "الإعداد غير مكتمل. يرجى ضبط ADMIN_PASSWORD في ملف البيئة." },
-      { status: 503 },
-    )
+    return NextResponse.json({ ok: false, message: "لم يتم تفعيل لوحة الإدارة بعد." }, { status: 503 })
   }
 
   let body: { password?: string } = {}
@@ -36,7 +33,7 @@ export async function POST(request: Request) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/",
+    path: "/admin",
     maxAge: 60 * 60 * 12,
   })
 

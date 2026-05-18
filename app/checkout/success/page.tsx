@@ -29,10 +29,9 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
             <div className="mx-auto max-w-3xl rounded-[2.5rem] border border-border bg-card p-8 text-center shadow-xl md:p-12">
               <CheckCircle2 className="mx-auto h-16 w-16 text-primary" />
               <p className="eyebrow mt-6">تم استلام الطلب</p>
-              <h1 className="mt-3 text-4xl font-black text-foreground sm:text-5xl">شكرًا لكِ، طلبك قيد المتابعة</h1>
+              <h1 className="mt-3 text-4xl font-black text-foreground sm:text-5xl">تم إرسال الطلب بنجاح وهو قيد المراجعة.</h1>
               <p className="mx-auto mt-4 max-w-2xl leading-8 text-muted-foreground">
-                تم تسجيل الطلب بنجاح، وحالته الآن <strong>{statusLabel}</strong>. سنرسل لكِ رسالة متابعة لتأكيد
-                التفاصيل.
+                حالة الطلب الحالية: <strong>{statusLabel}</strong>. سيتم اعتماد المنتج بعد تأكيد الدفع.
               </p>
 
               <div className="mt-8 rounded-[2rem] border border-border bg-background p-5 text-right">

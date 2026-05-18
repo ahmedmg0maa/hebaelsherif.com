@@ -20,6 +20,12 @@ function duration(value: unknown): SessionDuration {
   return Number(value) === 90 ? 90 : 60
 }
 
+function formatTime(date: Date) {
+  const hours = date.getHours().toString().padStart(2, "0")
+  const minutes = date.getMinutes().toString().padStart(2, "0")
+  return `${hours}:${minutes}`
+}
+
 export async function GET(request: NextRequest) {
   const dateInput = text(request.nextUrl.searchParams.get("date"))
   const sessionDuration = duration(request.nextUrl.searchParams.get("duration"))
@@ -52,19 +58,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const name = text(body.name)
+    const customerName = text(body.name)
     const phone = text(body.phone)
     const email = text(body.email)
     const message = text(body.message)
     const startTime = text(body.startTime)
     const discountCode = normalizeDiscountCode(body.discountCode)
     const sessionDuration = duration(body.duration)
+    const userId = text(body.userId) || undefined
 
-    if (!name || !phone || !email || !startTime) {
-      return NextResponse.json(
-        { ok: false, message: "برجاء إدخال الاسم والهاتف والبريد والموعد." },
-        { status: 400 },
-      )
+    if (!customerName || !phone || !email || !startTime) {
+      return NextResponse.json({ ok: false, message: "يرجى استكمال بيانات الحجز." }, { status: 400 })
     }
 
     const slot = validateBookingSlot(startTime, sessionDuration)
@@ -74,25 +78,24 @@ export async function POST(request: Request) {
 
     const existing = await listBookingsForDate(dateKey(slot.date))
     if (hasBookingConflict(slot.date, sessionDuration, existing)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "هذا الموعد غير متاح، يرجى اختيار موعد آخر.",
-        },
-        { status: 409 },
-      )
+      return NextResponse.json({ ok: false, message: "هذا الموعد غير متاح، يرجى اختيار موعد آخر." }, { status: 409 })
     }
 
     const price = getSessionPrice(sessionDuration, discountCode)
     const saved = await addDocument("bookings", {
-      name,
+      userId: userId || null,
+      customerName,
+      name: customerName,
       phone,
       email,
       message,
       service: "coaching",
       startTime: slot.date.toISOString(),
       startDate: dateKey(slot.date),
+      date: dateKey(slot.date),
+      time: formatTime(slot.date),
       duration: sessionDuration,
+      amount: price.finalPrice,
       discountCode: discountCode || null,
       originalPrice: price.originalPrice,
       finalPrice: price.finalPrice,
@@ -100,11 +103,19 @@ export async function POST(request: Request) {
       status: "pending",
     })
 
+    if (!saved.ok || !saved.id) {
+      return NextResponse.json(
+        { ok: false, message: "تعذر حفظ الحجز حالياً. يرجى المحاولة مرة أخرى." },
+        { status: 503 },
+      )
+    }
+
     return NextResponse.json({
       ok: true,
       bookingId: saved.id,
       price,
-      message: "تم استلام طلب الحجز بنجاح.",
+      status: "pending",
+      message: "تم إرسال طلب الحجز بنجاح. سنراجع الموعد ونؤكد لكِ قريبًا.",
     })
   } catch {
     return NextResponse.json({ ok: false, message: "تعذر قراءة بيانات الحجز." }, { status: 400 })

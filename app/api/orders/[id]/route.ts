@@ -19,7 +19,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const { id } = await context.params
   if (!id) {
-    return NextResponse.json({ ok: false, message: "معرّف الطلب غير صالح." }, { status: 400 })
+    return NextResponse.json({ ok: false, message: "معرف الطلب غير صالح." }, { status: 400 })
   }
 
   const order = await getDocument("orders", id)
@@ -37,7 +37,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const { id } = await context.params
   if (!id) {
-    return NextResponse.json({ ok: false, message: "معرّف الطلب غير صالح." }, { status: 400 })
+    return NextResponse.json({ ok: false, message: "معرف الطلب غير صالح." }, { status: 400 })
   }
 
   let body: { status?: string } = {}
@@ -56,5 +56,6 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!result.ok) {
     return NextResponse.json({ ok: false, message: "تعذر تحديث حالة الطلب." }, { status: 500 })
   }
+
   return NextResponse.json({ ok: true, status })
 }

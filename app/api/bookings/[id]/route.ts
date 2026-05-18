@@ -5,7 +5,7 @@ import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-const allowedStatuses = new Set(["pending", "confirmed", "completed", "cancelled"])
+const allowedStatuses = new Set(["pending", "approved", "completed", "cancelled"])
 
 async function ensureAdminSession() {
   const token = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value
@@ -18,10 +18,14 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params
-  if (!id) return NextResponse.json({ ok: false, message: "معرّف الحجز غير صالح." }, { status: 400 })
+  if (!id) {
+    return NextResponse.json({ ok: false, message: "معرف الحجز غير صالح." }, { status: 400 })
+  }
 
   const booking = await getDocument("bookings", id)
-  if (!booking) return NextResponse.json({ ok: false, message: "الحجز غير موجود." }, { status: 404 })
+  if (!booking) {
+    return NextResponse.json({ ok: false, message: "الحجز غير موجود." }, { status: 404 })
+  }
 
   return NextResponse.json({ ok: true, booking })
 }
@@ -32,7 +36,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params
-  if (!id) return NextResponse.json({ ok: false, message: "معرّف الحجز غير صالح." }, { status: 400 })
+  if (!id) {
+    return NextResponse.json({ ok: false, message: "معرف الحجز غير صالح." }, { status: 400 })
+  }
 
   let body: { status?: string } = {}
   try {

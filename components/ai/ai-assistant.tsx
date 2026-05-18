@@ -27,7 +27,7 @@ type AssistantStep = {
 const steps: Record<string, AssistantStep> = {
   start: {
     id: "start",
-    title: "نور",
+    title: "Ai Chat",
     answer: "اختاري ما يناسبك، ونرشدكِ للبداية الأنسب.",
     options: [
       { label: "أريد حجز جلسة خاصة", next: "booking" },
@@ -122,13 +122,13 @@ export function AIAssistant() {
           type="button"
           onClick={() => setOpen(true)}
           className="group flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-right shadow-lg transition hover:-translate-y-0.5"
-          aria-label="فتح نور"
+          aria-label="فتح Ai Chat"
         >
           <span className="inline-flex size-8 items-center justify-center rounded-full bg-primary text-xs font-black text-primary-foreground">
-            نور
+            Ai Chat
           </span>
           <span className="hidden sm:block">
-            <span className="block text-xs font-black text-foreground">مساعد هبة</span>
+            <span className="block text-xs font-black text-foreground">Ai Chat</span>
             <span className="block text-[10px] font-semibold text-muted-foreground">نرشدكِ للبداية الأنسب</span>
           </span>
         </button>
@@ -137,7 +137,7 @@ export function AIAssistant() {
           <header className="bg-primary px-3.5 py-2.5 text-primary-foreground">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <h2 className="text-xs font-black sm:text-sm">نور</h2>
+                <h2 className="text-xs font-black sm:text-sm">Ai Chat</h2>
                 <p className="text-[11px] text-primary-foreground/85">مساحة هادئة للاختيار</p>
               </div>
               <div className="flex items-center gap-1.5">

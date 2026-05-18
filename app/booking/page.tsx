@@ -3,6 +3,7 @@
 import type { FormEvent } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import { onAuthStateChanged } from "firebase/auth"
 import { CalendarDays, CheckCircle2, MessageCircle } from "lucide-react"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getFirebaseClientAuth } from "@/lib/firebase/client"
 import { getSessionPrice, SESSION_PRICES, type SessionDuration } from "@/lib/booking-rules"
 
 type BookingPrice = {
@@ -21,7 +23,9 @@ type BookingPrice = {
 
 type BookingSuccess = {
   bookingId?: string
+  status?: string
   price?: BookingPrice
+  message?: string
 }
 
 type Slot = {
@@ -42,6 +46,7 @@ export default function BookingPage() {
   const [slotsMessage, setSlotsMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [userId, setUserId] = useState<string | null>(null)
 
   const price = useMemo(() => getSessionPrice(duration, discountCode), [duration, discountCode])
   const hasDiscountCode = discountCode.trim().length > 0
@@ -50,6 +55,14 @@ export default function BookingPage() {
       ? "تم تطبيق الكود بنجاح"
       : "الكود غير صالح أو منتهي"
     : ""
+
+  useEffect(() => {
+    const auth = getFirebaseClientAuth()
+    if (!auth) return
+    return onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid ?? null)
+    })
+  }, [])
 
   useEffect(() => {
     async function fetchSlots() {
@@ -103,6 +116,7 @@ export default function BookingPage() {
       duration,
       discountCode,
       message: String(formData.get("message") ?? ""),
+      userId,
     }
 
     try {
@@ -113,7 +127,12 @@ export default function BookingPage() {
       })
       const result = await response.json()
       if (!response.ok || !result.ok) throw new Error(result.message || "تعذر إرسال طلب الحجز.")
-      setSubmitted({ bookingId: result.bookingId, price: result.price })
+      setSubmitted({
+        bookingId: result.bookingId,
+        price: result.price,
+        status: result.status,
+        message: result.message,
+      })
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "حدث خطأ غير متوقع.")
     } finally {
@@ -129,9 +148,7 @@ export default function BookingPage() {
           <div className="container-brand grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
             <div>
               <p className="eyebrow">جلسة خاصة</p>
-              <h1 className="mt-5 text-4xl font-black leading-tight text-foreground sm:text-5xl">
-                احجزي جلستك الخاصة
-              </h1>
+              <h1 className="mt-5 text-4xl font-black leading-tight text-foreground sm:text-5xl">احجزي جلستك الخاصة</h1>
               <p className="mt-5 text-base leading-8 text-muted-foreground sm:text-lg">
                 اختاري المدة والموعد المناسب، وسنساعدكِ على بدء جلسة واضحة وهادئة تناسب احتياجك.
               </p>
@@ -150,11 +167,14 @@ export default function BookingPage() {
               {submitted ? (
                 <div className="py-16 text-center">
                   <CheckCircle2 className="mx-auto h-16 w-16 text-primary" />
-                  <h2 className="mt-6 text-3xl font-black">تم استلام طلب الحجز</h2>
+                  <h2 className="mt-6 text-3xl font-black">تم إرسال طلب الحجز</h2>
                   <p className="mx-auto mt-4 max-w-md leading-8 text-muted-foreground">
-                    رقم الحجز: <span className="latin font-bold text-primary">{submitted.bookingId}</span>. سنقوم بالتواصل
-                    معكِ لتأكيد الموعد.
+                    {submitted.message || "تم إرسال طلب الحجز بنجاح. سنراجع الموعد ونؤكد لكِ قريبًا."}
                   </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    رقم الحجز: <span className="latin font-bold text-primary">{submitted.bookingId}</span>
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-primary">الحالة الحالية: قيد المراجعة</p>
                   <Button className="mt-8 rounded-full" onClick={() => setSubmitted(null)}>
                     حجز موعد آخر
                   </Button>
@@ -232,15 +252,11 @@ export default function BookingPage() {
                       placeholder="لديكِ كود خاص؟"
                       className="h-12 rounded-2xl bg-secondary/55 uppercase"
                     />
-                    {couponStateMessage && (
-                      <p
-                        className={`text-sm font-bold ${
-                          price.discountApplied ? "text-accent" : "text-destructive"
-                        }`}
-                      >
+                    {couponStateMessage ? (
+                      <p className={`text-sm font-bold ${price.discountApplied ? "text-accent" : "text-destructive"}`}>
                         {couponStateMessage}
                       </p>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="rounded-2xl border border-accent/30 bg-accent/10 p-4">
@@ -249,15 +265,13 @@ export default function BookingPage() {
                       <span>السعر الأساسي</span>
                       <span className="font-bold text-foreground">{price.originalPrice.toLocaleString("en-US")} ج.م</span>
                     </div>
-                    {price.discountApplied && (
+                    {price.discountApplied ? (
                       <div className="mt-2 flex items-center justify-between text-sm text-accent">
                         <span>السعر بعد الكود</span>
                         <span className="font-bold">{price.finalPrice.toLocaleString("en-US")} ج.م</span>
                       </div>
-                    )}
-                    <p className="mt-3 text-3xl font-black text-primary latin">
-                      {price.finalPrice.toLocaleString("en-US")} EGP
-                    </p>
+                    ) : null}
+                    <p className="mt-3 text-3xl font-black text-primary latin">{price.finalPrice.toLocaleString("en-US")} EGP</p>
                   </div>
 
                   <div className="space-y-2">
@@ -270,11 +284,11 @@ export default function BookingPage() {
                     بعد اختيار اليوم، ستظهر لكِ المواعيد المتاحة مباشرة.
                   </div>
 
-                  {error && (
+                  {error ? (
                     <p className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm font-bold text-destructive">
                       {error}
                     </p>
-                  )}
+                  ) : null}
 
                   <Button
                     disabled={isSubmitting}

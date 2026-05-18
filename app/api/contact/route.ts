@@ -30,6 +30,10 @@ export async function POST(request: Request) {
       status: "new",
     })
 
+    if (!saved.ok || !saved.id) {
+      return NextResponse.json({ ok: false, message: "تعذر إرسال الرسالة حالياً. يرجى المحاولة مرة أخرى." }, { status: 503 })
+    }
+
     return NextResponse.json({ ok: true, messageId: saved.id })
   } catch {
     return NextResponse.json({ ok: false, message: "تعذر إرسال الرسالة." }, { status: 400 })

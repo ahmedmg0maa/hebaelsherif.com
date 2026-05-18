@@ -4,6 +4,9 @@ import { ADMIN_SESSION_COOKIE } from "@/lib/admin-auth"
 
 export async function POST() {
   const cookieStore = await cookies()
-  cookieStore.delete(ADMIN_SESSION_COOKIE)
+  cookieStore.delete({
+    name: ADMIN_SESSION_COOKIE,
+    path: "/admin",
+  })
   return NextResponse.json({ ok: true })
 }

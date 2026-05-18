@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
-const statuses = [
-  { value: "pending", label: "قيد المراجعة" },
-  { value: "paid", label: "مدفوع" },
-  { value: "cancelled", label: "ملغي" },
-] as const
+function statusLabel(status: string) {
+  if (status === "paid") return "مدفوع"
+  if (status === "cancelled") return "ملغي"
+  return "قيد المراجعة"
+}
 
 export function OrderStatusSelect({
   orderId,
@@ -16,22 +18,25 @@ export function OrderStatusSelect({
   orderId: string
   initialStatus: string
 }) {
+  const router = useRouter()
   const [status, setStatus] = useState(initialStatus || "pending")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
 
-  async function saveStatus() {
+  async function updateStatus(nextStatus: "paid" | "cancelled") {
     setLoading(true)
     setMessage("")
     try {
       const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: nextStatus }),
       })
       const data = await response.json()
       if (!response.ok || !data.ok) throw new Error(data.message || "تعذر التحديث.")
+      setStatus(nextStatus)
       setMessage("تم الحفظ")
+      router.refresh()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "تعذر التحديث")
     } finally {
@@ -40,22 +45,36 @@ export function OrderStatusSelect({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <select
-        value={status}
-        onChange={(event) => setStatus(event.target.value)}
-        className="h-9 rounded-full border border-border bg-background px-3 text-xs"
-      >
-        {statuses.map((item) => (
-          <option key={item.value} value={item.value}>
-            {item.label}
-          </option>
-        ))}
-      </select>
-      <Button type="button" size="sm" className="h-9 rounded-full px-3" disabled={loading} onClick={saveStatus}>
-        {loading ? "..." : "حفظ"}
-      </Button>
-      {message ? <span className="text-[11px] text-muted-foreground">{message}</span> : null}
+    <div className="space-y-2">
+      <p className="text-xs font-bold text-muted-foreground">{statusLabel(status)}</p>
+      <div className="flex flex-wrap gap-1.5">
+        <Button
+          type="button"
+          size="sm"
+          disabled={loading}
+          onClick={() => updateStatus("paid")}
+          className={cn(
+            "h-8 rounded-full px-3 text-xs",
+            status === "paid" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-primary/90 hover:text-primary-foreground",
+          )}
+        >
+          تأكيد الدفع
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={loading}
+          variant="outline"
+          onClick={() => updateStatus("cancelled")}
+          className={cn(
+            "h-8 rounded-full px-3 text-xs",
+            status === "cancelled" ? "border-destructive text-destructive" : "",
+          )}
+        >
+          إلغاء الطلب
+        </Button>
+      </div>
+      {message ? <span className="block text-[11px] text-muted-foreground">{message}</span> : null}
     </div>
   )
 }

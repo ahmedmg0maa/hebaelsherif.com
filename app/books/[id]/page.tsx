@@ -1,21 +1,22 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowRight, BookOpen, CheckCircle2, CreditCard, Sparkles } from "lucide-react"
+import { ArrowRight, BookOpen, CreditCard, Sparkles } from "lucide-react"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
-import { books, getBookById } from "@/lib/site-data"
+import { getCatalogBookBySlug, listCatalogBooks } from "@/lib/catalog"
 
 type PageProps = { params: Promise<{ id: string }> }
 
 export async function generateStaticParams() {
-  return books.map((book) => ({ id: book.id }))
+  const books = await listCatalogBooks({ onlyActive: true, allowFallback: true })
+  return books.map((book) => ({ id: book.slug || book.id }))
 }
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params
-  const book = getBookById(id)
-  if (!book) return {}
+  const book = await getCatalogBookBySlug(id)
+  if (!book || book.status !== "active") return {}
   return {
     title: `${book.title} | كتب هبة الشريف`,
     description: book.description,
@@ -24,8 +25,8 @@ export async function generateMetadata({ params }: PageProps) {
 
 export default async function BookDetailsPage({ params }: PageProps) {
   const { id } = await params
-  const book = getBookById(id)
-  if (!book) notFound()
+  const book = await getCatalogBookBySlug(id)
+  if (!book || book.status !== "active") notFound()
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://hebaelsharif.com"
   const bookSchema = {
@@ -60,11 +61,11 @@ export default async function BookDetailsPage({ params }: PageProps) {
               </Link>
               <p className="eyebrow mt-8">كتاب</p>
               <h1 className="mt-4 text-4xl font-black leading-tight text-foreground sm:text-5xl lg:text-6xl">{book.title}</h1>
-              <p className="mt-4 text-2xl font-bold text-primary">{book.subtitle}</p>
+              <p className="mt-4 text-2xl font-bold text-primary">{book.shortDescription}</p>
               <p className="mt-6 max-w-3xl text-base leading-8 text-muted-foreground sm:text-lg">{book.description}</p>
             </div>
 
-          <aside className="rounded-[2rem] border border-border bg-card p-6 shadow-xl">
+            <aside className="rounded-[2rem] border border-border bg-card p-6 shadow-xl">
               <div className="rounded-[1.5rem] bg-primary p-6 text-primary-foreground">
                 <BookOpen className="h-7 w-7 text-accent" />
                 <p className="mt-8 text-3xl font-black">{book.title}</p>
@@ -73,9 +74,6 @@ export default async function BookDetailsPage({ params }: PageProps) {
                 <p className="text-sm text-muted-foreground">السعر</p>
                 <p className="text-4xl font-black text-primary latin">{book.price.toLocaleString("en-US")} EGP</p>
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                {book.format} · {book.pages} صفحة {book.status ? `· ${book.status}` : ""}
-              </p>
               <Link href={`/checkout?type=book&id=${book.id}`} className="mt-6 block">
                 <Button className="h-12 w-full rounded-full bg-[var(--burgundy)] text-primary-foreground hover:bg-[var(--burgundy)]/90">
                   <CreditCard className="h-5 w-5" />
@@ -87,29 +85,16 @@ export default async function BookDetailsPage({ params }: PageProps) {
         </section>
 
         <section className="section-padding">
-          <div className="container-brand grid gap-10 lg:grid-cols-2">
-            <div>
-              <p className="eyebrow">لمن هذا الكتاب؟</p>
-              <h2 className="mt-4 text-3xl font-black text-foreground sm:text-4xl">هذا الكتاب مناسب لك إذا كنت:</h2>
-              <div className="mt-8 grid gap-4">
-                {book.audience.map((item) => (
-                  <div key={item} className="flex gap-3 rounded-2xl border border-border bg-card p-4">
-                    <Sparkles className="mt-1 h-5 w-5 flex-none text-accent" />
-                    <p className="leading-7 text-muted-foreground">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="eyebrow">ماذا ستتعلم؟</p>
-              <h2 className="mt-4 text-3xl font-black text-foreground sm:text-4xl">نتائج عملية من القراءة</h2>
-              <div className="mt-8 grid gap-4">
-                {book.learn.map((item) => (
-                  <div key={item} className="flex gap-3 rounded-2xl border border-border bg-card p-4">
-                    <CheckCircle2 className="mt-1 h-5 w-5 flex-none text-primary" />
-                    <p className="leading-7 text-muted-foreground">{item}</p>
-                  </div>
-                ))}
+          <div className="container-brand">
+            <div className="rounded-[2rem] border border-border bg-card p-8">
+              <p className="eyebrow">ماذا ستحصلين؟</p>
+              <h2 className="mt-4 text-3xl font-black text-foreground">كتاب رقمي ضمن حسابك بعد اعتماد الطلب</h2>
+              <p className="mt-4 leading-8 text-muted-foreground">
+                بعد اعتماد الدفع من الإدارة سيظهر الكتاب داخل حسابك مع زر تحميل حقيقي عند توفر رابط الملف.
+              </p>
+              <div className="mt-6 flex items-center gap-2 text-muted-foreground">
+                <Sparkles className="h-5 w-5 text-accent" />
+                تجربة شراء ومتابعة موحدة من صفحة الحساب.
               </div>
             </div>
           </div>
