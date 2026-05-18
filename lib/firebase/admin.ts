@@ -2,6 +2,7 @@ import { getApps, initializeApp, type FirebaseApp } from "firebase/app"
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -9,6 +10,7 @@ import {
   limit as limitQuery,
   orderBy,
   query,
+  setDoc,
   updateDoc,
   where,
   type Firestore,
@@ -33,8 +35,6 @@ type ListOptions = {
   whereClauses?: WhereClause[]
 }
 
-const memoryStore: Record<string, AdminRecord[]> = {}
-
 let cachedApp: FirebaseApp | null = null
 let cachedDb: Firestore | null = null
 
@@ -49,13 +49,13 @@ function firebaseConfig() {
   }
 }
 
-function canInitFirebase() {
+export function isFirebaseConfigured() {
   const config = firebaseConfig()
   return Boolean(config.apiKey && config.projectId && config.appId)
 }
 
 function getFirebaseApp() {
-  if (!canInitFirebase()) return null
+  if (!isFirebaseConfigured()) return null
   if (cachedApp) return cachedApp
   cachedApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig())
   return cachedApp
@@ -73,10 +73,6 @@ function nowISO() {
   return new Date().toISOString()
 }
 
-function makeId(collectionName: string) {
-  return `${collectionName.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(16).slice(2, 8)}`
-}
-
 function toSerializable(value: unknown): unknown {
   if (value === null || value === undefined) return value
   if (Array.isArray(value)) return value.map((item) => toSerializable(item))
@@ -91,42 +87,29 @@ function toSerializable(value: unknown): unknown {
   return Object.fromEntries(entries.map(([key, nested]) => [key, toSerializable(nested)]))
 }
 
-function remember(collectionName: string, record: AdminRecord) {
-  memoryStore[collectionName] ||= []
-  memoryStore[collectionName].push(record)
-}
-
 export async function addDocument(collectionName: string, data: StoreDocument) {
+  const db = getDb()
+  if (!db) {
+    return { ok: false, id: "", error: "FIREBASE_NOT_CONFIGURED" }
+  }
+
   const record = {
     ...data,
     createdAt: typeof data.createdAt === "string" ? data.createdAt : nowISO(),
-  }
-
-  const db = getDb()
-  if (!db) {
-    const id = makeId(collectionName)
-    const memoryRecord = { id, ...record } as AdminRecord
-    remember(collectionName, memoryRecord)
-    return { id, memoryMode: true, record: memoryRecord }
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : nowISO(),
   }
 
   try {
     const ref = await addDoc(collection(db, collectionName), record)
-    return { id: ref.id, memoryMode: false, record: { id: ref.id, ...record } as AdminRecord }
+    return { ok: true, id: ref.id, record: { id: ref.id, ...record } as AdminRecord }
   } catch {
-    const id = makeId(collectionName)
-    const memoryRecord = { id, ...record } as AdminRecord
-    remember(collectionName, memoryRecord)
-    return { id, memoryMode: true, record: memoryRecord }
+    return { ok: false, id: "", error: "WRITE_FAILED" }
   }
 }
 
 export async function listDocuments(collectionName: string, options?: ListOptions): Promise<AdminRecord[]> {
   const db = getDb()
-  if (!db) {
-    const list = memoryStore[collectionName] || []
-    return list.slice(0, options?.limit ?? list.length) as AdminRecord[]
-  }
+  if (!db) return []
 
   try {
     const constraints: QueryConstraint[] = []
@@ -149,16 +132,13 @@ export async function listDocuments(collectionName: string, options?: ListOption
       ...(toSerializable(item.data()) as StoreDocument),
     })) as AdminRecord[]
   } catch {
-    const list = memoryStore[collectionName] || []
-    return list.slice(0, options?.limit ?? list.length) as AdminRecord[]
+    return []
   }
 }
 
 export async function getDocument(collectionName: string, id: string): Promise<AdminRecord | null> {
   const db = getDb()
-  if (!db) {
-    return (memoryStore[collectionName] || []).find((item) => String(item.id) === id) || null
-  }
+  if (!db) return null
 
   try {
     const ref = doc(db, collectionName, id)
@@ -166,27 +146,55 @@ export async function getDocument(collectionName: string, id: string): Promise<A
     if (!snapshot.exists()) return null
     return { id: snapshot.id, ...(toSerializable(snapshot.data()) as StoreDocument) }
   } catch {
-    return (memoryStore[collectionName] || []).find((item) => String(item.id) === id) || null
+    return null
   }
 }
 
 export async function updateDocument(collectionName: string, id: string, data: StoreDocument) {
   const db = getDb()
-  const payload = { ...data, updatedAt: nowISO() }
+  if (!db) return { ok: false, error: "FIREBASE_NOT_CONFIGURED" }
 
-  if (!db) {
-    const list = memoryStore[collectionName] || []
-    const index = list.findIndex((item) => String(item.id) === id)
-    if (index === -1) return { ok: false, memoryMode: true }
-    list[index] = { ...list[index], ...payload }
-    return { ok: true, memoryMode: true }
+  const payload = { ...data, updatedAt: nowISO() }
+  try {
+    await updateDoc(doc(db, collectionName, id), payload)
+    return { ok: true }
+  } catch {
+    return { ok: false, error: "UPDATE_FAILED" }
+  }
+}
+
+export async function setDocument(collectionName: string, id: string, data: StoreDocument, merge = true) {
+  const db = getDb()
+  if (!db) return { ok: false, error: "FIREBASE_NOT_CONFIGURED" }
+
+  const payload = {
+    ...data,
+    updatedAt: nowISO(),
+  }
+
+  if (!merge) {
+    const createdAt =
+      typeof data.createdAt === "string" && data.createdAt.trim().length > 0 ? data.createdAt : nowISO()
+    Object.assign(payload, { createdAt })
   }
 
   try {
-    await updateDoc(doc(db, collectionName, id), payload)
-    return { ok: true, memoryMode: false }
+    await setDoc(doc(db, collectionName, id), payload, { merge })
+    return { ok: true }
   } catch {
-    return { ok: false, memoryMode: true }
+    return { ok: false, error: "SET_FAILED" }
+  }
+}
+
+export async function deleteDocument(collectionName: string, id: string) {
+  const db = getDb()
+  if (!db) return { ok: false, error: "FIREBASE_NOT_CONFIGURED" }
+
+  try {
+    await deleteDoc(doc(db, collectionName, id))
+    return { ok: true }
+  } catch {
+    return { ok: false, error: "DELETE_FAILED" }
   }
 }
 
@@ -194,30 +202,15 @@ export async function listBookingsForDate(dateISOOrKey: string) {
   const key = dateISOOrKey.slice(0, 10)
   const records = await listDocuments("bookings", {
     whereClauses: [{ field: "startDate", value: key }],
-    limit: 250,
+    limit: 400,
   })
 
-  if (records.length > 0) {
-    return records
-      .map((item) => ({
-        startTime: String(item.startTime || ""),
-        duration: Number(item.duration || 60),
-        status: item.status ? String(item.status) : undefined,
-      }))
-      .filter((item) => item.startTime)
-  }
-
-  const memoryMatches = (memoryStore.bookings || []).filter(
-    (item) =>
-      String(item.startDate || "") === key ||
-      String(item.startTime || "").slice(0, 10) === key ||
-      (item.startTime instanceof Date && dateKey(item.startTime) === key),
-  )
-  return memoryMatches
+  return records
     .map((item) => ({
       startTime: String(item.startTime || ""),
       duration: Number(item.duration || 60),
       status: item.status ? String(item.status) : undefined,
+      startDate: String(item.startDate || dateKey(new Date(String(item.startTime || "")))),
     }))
     .filter((item) => item.startTime)
 }

@@ -1,8 +1,7 @@
 import { timingSafeEqual } from "node:crypto"
 
-// Temporary guard for admin routes.
-// Replace this with Firebase Auth roles when full auth rollout is ready.
-export const ADMIN_SESSION_COOKIE = "heba_admin_session"
+export const ADMIN_SESSION_COOKIE = "admin-auth"
+const ADMIN_SESSION_VALUE = "true"
 
 function safeEqual(a: string, b: string) {
   const aBuffer = Buffer.from(a)
@@ -26,12 +25,11 @@ export function isValidAdminPassword(password: string) {
 }
 
 export function createAdminSessionToken() {
-  return getConfiguredAdminPassword()
+  return ADMIN_SESSION_VALUE
 }
 
 export function isValidAdminSessionToken(token?: string | null) {
   if (!token) return false
-  const expected = createAdminSessionToken()
-  if (!expected) return false
-  return safeEqual(expected, token)
+  if (!hasConfiguredAdminPassword()) return false
+  return safeEqual(ADMIN_SESSION_VALUE, token)
 }

@@ -1,20 +1,58 @@
-import { getApps, initializeApp } from "firebase/app"
+import { getApps, initializeApp, type FirebaseApp } from "firebase/app"
 import { getAnalytics, isSupported } from "firebase/analytics"
+import { getAuth, type Auth } from "firebase/auth"
+import { getFirestore, type Firestore } from "firebase/firestore"
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCgoOTQHBaNTzsdN2e2dhYX-3rQZPsRsJQ",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "hebaelsherif-3c8ce.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "hebaelsherif-3c8ce",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "hebaelsherif-3c8ce.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "445958123582",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:445958123582:web:f3ca734b4b45731761216f",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-YXG7W4P06T",
+const firebasePublicConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
-export const firebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
+let cachedApp: FirebaseApp | null = null
+let cachedAuth: Auth | null = null
+let cachedDb: Firestore | null = null
+
+export function hasFirebasePublicConfig() {
+  return Boolean(
+    firebasePublicConfig.apiKey &&
+      firebasePublicConfig.authDomain &&
+      firebasePublicConfig.projectId &&
+      firebasePublicConfig.appId,
+  )
+}
+
+export function getFirebaseClientApp() {
+  if (!hasFirebasePublicConfig()) return null
+  if (cachedApp) return cachedApp
+  cachedApp = getApps().length ? getApps()[0] : initializeApp(firebasePublicConfig)
+  return cachedApp
+}
+
+export function getFirebaseClientAuth() {
+  if (cachedAuth) return cachedAuth
+  const app = getFirebaseClientApp()
+  if (!app) return null
+  cachedAuth = getAuth(app)
+  return cachedAuth
+}
+
+export function getFirebaseClientDb() {
+  if (cachedDb) return cachedDb
+  const app = getFirebaseClientApp()
+  if (!app) return null
+  cachedDb = getFirestore(app)
+  return cachedDb
+}
 
 export async function initFirebaseAnalytics() {
   if (typeof window === "undefined") return null
+  const app = getFirebaseClientApp()
+  if (!app) return null
   const supported = await isSupported().catch(() => false)
-  return supported ? getAnalytics(firebaseApp) : null
+  return supported ? getAnalytics(app) : null
 }
