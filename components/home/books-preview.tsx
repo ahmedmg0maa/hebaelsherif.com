@@ -1,9 +1,11 @@
 import Link from "next/link"
 import { ArrowRight, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { books } from "@/lib/site-data"
+import { listCatalogBooks } from "@/lib/catalog"
 
-export function BooksPreview() {
+export async function BooksPreview() {
+  const books = (await listCatalogBooks({ onlyActive: true, allowFallback: true })).slice(0, 4)
+
   return (
     <section className="section-padding bg-secondary/30" dir="rtl">
       <div className="container-brand">
@@ -32,11 +34,11 @@ export function BooksPreview() {
                 <BookOpen className="size-6" />
               </div>
               <h3 className="mt-5 text-2xl font-black text-foreground">{book.title}</h3>
-              <p className="mt-3 text-sm font-semibold text-accent">{book.subtitle}</p>
+              <p className="mt-3 text-sm font-semibold text-accent">{book.shortDescription}</p>
               <p className="mt-4 text-sm leading-7 text-muted-foreground">{book.description}</p>
               <div className="mt-6 flex items-center justify-between">
                 <p className="latin text-lg font-black text-primary">{book.price.toLocaleString("en-US")} EGP</p>
-                <Link href={`/books/${book.id}`} className="text-sm font-bold text-primary hover:text-accent">
+                <Link href={`/books/${book.slug || book.id}`} className="text-sm font-bold text-primary hover:text-accent">
                   التفاصيل
                 </Link>
               </div>

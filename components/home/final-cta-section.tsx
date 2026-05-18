@@ -34,7 +34,7 @@ export function FinalCtaSection() {
             <div className="rounded-[2rem] border border-accent/30 bg-accent/10 p-6">
               <p className="text-sm font-bold text-foreground">مساحة هادئة للاختيار</p>
               <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                إن كنتِ مترددة، افتحي نور من أسفل الصفحة وسيرشدكِ مباشرةً إلى البداية الأنسب.
+                إن كنتِ مترددة، افتحي Ai Chat من أسفل الصفحة وسيرشدكِ مباشرةً إلى البداية الأنسب.
               </p>
             </div>
           </div>

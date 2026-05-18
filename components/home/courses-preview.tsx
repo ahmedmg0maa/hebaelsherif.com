@@ -1,16 +1,11 @@
 import Link from "next/link"
-import { ArrowRight, BookOpen, Clock, Star } from "lucide-react"
+import { ArrowRight, BookOpen, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { courses } from "@/lib/site-data"
+import { listCatalogCourses } from "@/lib/catalog"
 
-const colorClass = {
-  teal: "from-[color:rgba(47,97,115,0.92)] to-[color:rgba(47,97,115,0.72)]",
-  gold: "from-[color:rgba(183,155,96,0.92)] to-[color:rgba(245,240,231,0.55)]",
-  olive: "from-[color:rgba(107,114,78,0.92)] to-[color:rgba(183,155,96,0.72)]",
-  burgundy: "from-[color:rgba(122,36,51,0.9)] to-[color:rgba(183,155,96,0.78)]",
-}
+export async function CoursesPreview() {
+  const courses = (await listCatalogCourses({ onlyActive: true, allowFallback: true })).slice(0, 3)
 
-export function CoursesPreview() {
   return (
     <section className="section-padding" dir="rtl">
       <div className="container-brand">
@@ -30,31 +25,26 @@ export function CoursesPreview() {
         </div>
 
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
-          {courses.slice(0, 3).map((course) => (
+          {courses.map((course) => (
             <article
               key={course.id}
               className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
             >
-              <div className={`h-48 bg-gradient-to-br ${colorClass[course.color]} p-6 text-white`}>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">
-                    {course.category}
-                  </span>
-                  <Star className="h-5 w-5 fill-current" />
-                </div>
+              <div className="h-48 bg-primary p-6 text-primary-foreground">
+                <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">{course.duration || "برنامج رقمي"}</span>
                 <h3 className="mt-10 text-3xl font-black leading-tight">{course.title}</h3>
               </div>
               <div className="p-6">
-                <p className="font-semibold text-foreground">{course.subtitle}</p>
+                <p className="font-semibold text-foreground">{course.shortDescription}</p>
                 <p className="mt-3 leading-7 text-muted-foreground">{course.description}</p>
                 <div className="mt-5 flex flex-wrap gap-3 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1">
                     <Clock className="h-4 w-4" />
-                    {course.duration}
+                    {course.duration || "—"}
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1">
                     <BookOpen className="h-4 w-4" />
-                    {course.lessons} درس
+                    {course.lessonsCount ? `${course.lessonsCount} درس` : "—"}
                   </span>
                 </div>
                 <div className="mt-6 flex items-center justify-between gap-3">
@@ -62,7 +52,7 @@ export function CoursesPreview() {
                     <p className="text-xs text-muted-foreground">السعر</p>
                     <p className="text-2xl font-black text-primary latin">{course.price.toLocaleString("en-US")} EGP</p>
                   </div>
-                  <Link href={`/courses/${course.id}`}>
+                  <Link href={`/courses/${course.slug || course.id}`}>
                     <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">التفاصيل</Button>
                   </Link>
                 </div>
