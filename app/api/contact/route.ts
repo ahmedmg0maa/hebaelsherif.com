@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { addDocument } from "@/lib/firebase/admin"
+import { addDocument, getFirebaseAdminErrorMessage } from "@/lib/firebase/admin"
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : ""
@@ -31,7 +31,15 @@ export async function POST(request: Request) {
     })
 
     if (!saved.ok || !saved.id) {
-      return NextResponse.json({ ok: false, message: "تعذر إرسال الرسالة حالياً. يرجى المحاولة مرة أخرى." }, { status: 503 })
+      return NextResponse.json(
+        {
+          ok: false,
+          message:
+            getFirebaseAdminErrorMessage(saved.error) ||
+            "تعذر إرسال الرسالة حالياً. يرجى المحاولة مرة أخرى.",
+        },
+        { status: 503 },
+      )
     }
 
     return NextResponse.json({ ok: true, messageId: saved.id })

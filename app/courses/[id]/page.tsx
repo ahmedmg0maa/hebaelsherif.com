@@ -4,14 +4,11 @@ import { ArrowRight, BookOpen, Clock, CreditCard, Users } from "lucide-react"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
-import { getCatalogCourseBySlug, listCatalogCourses } from "@/lib/catalog"
+import { getCatalogCourseBySlug } from "@/lib/catalog"
 
 type PageProps = { params: Promise<{ id: string }> }
 
-export async function generateStaticParams() {
-  const courses = await listCatalogCourses({ onlyActive: true, allowFallback: true })
-  return courses.map((course) => ({ id: course.slug || course.id }))
-}
+export const dynamic = "force-dynamic"
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params

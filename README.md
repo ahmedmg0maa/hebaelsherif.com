@@ -1,45 +1,56 @@
 # Heba El Sharif Website
 
-موقع Next.js إنتاجي لعلامة هبة الشريف بهوية عربية هادئة، يشمل:
+Production-ready Next.js website with real Firebase-backed flows for:
+- Account
+- Bookings
+- Checkout / Orders
+- Admin dashboard
+- Books and Courses catalogs
 
-- الصفحة الرئيسية بتسلسل إطلاق كامل
-- الحجز مع مواعيد متاحة فقط وتسعير الجلسات
-- صفحات الكورسات والكتب والتفاصيل
-- مسار شراء واضح مع حفظ الطلبات
-- مساعد موجّه: **Ai Chat | دليلكِ الهادئ**
-- لوحة إدارة للحجوزات والطلبات والرسائل
-- إعدادات SEO (metadata / sitemap / robots)
-
-## التشغيل المحلي
+## Run Locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-افتح:
+Open `http://localhost:3000`.
 
-```txt
-http://localhost:3000
-```
-
-## بناء الإنتاج
+## Production Build
 
 ```bash
 npm run build
 npm run start
 ```
 
-## متغيرات البيئة
+## Environment Variables
 
-انسخ `.env.example` إلى `.env.local` ثم أضف قيم الخدمات التي تستخدمها (Firebase وغيرها).
+Copy `.env.example` to `.env.local` and fill values.
 
-### حماية لوحة الإدارة
+Required:
+- `NEXT_PUBLIC_FIREBASE_*` public web config
+- `FIREBASE_SERVICE_ACCOUNT_JSON` (server admin sdk)
+- `ADMIN_PASSWORD` (admin dashboard login)
 
-لتفعيل دخول لوحة الإدارة:
+Optional:
+- `FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_SITE_URL`
 
-```env
-ADMIN_PASSWORD=123
-```
+## Security Rules
 
-بدون `ADMIN_PASSWORD` لن يتم تفعيل جلسة دخول الإدارة.
+Prepared baseline rules files:
+- `firestore.rules`
+- `storage.rules`
+
+These should be reviewed and deployed before go-live.
+
+## Notification Prep
+
+Prepared notification abstraction:
+- `lib/notifications.ts`
+- `docs/notifications-todo.md`
+
+Current flow queues placeholder events for:
+- booking approved
+- order paid
+- account activation (planned trigger)

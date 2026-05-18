@@ -33,6 +33,50 @@ type Slot = {
   value: string
 }
 
+function pad(value: number) {
+  return String(value).padStart(2, "0")
+}
+
+function dateInputValue(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function parseDateInput(value: string) {
+  const parts = value.split("-").map((item) => Number(item))
+  if (parts.length !== 3 || parts.some((item) => !Number.isFinite(item))) return null
+  const [year, month, day] = parts
+  const parsed = new Date(year, month - 1, day, 0, 0, 0, 0)
+  if (Number.isNaN(parsed.getTime())) return null
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) return null
+  return parsed
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+}
+
+function formatArabicDate(value: string) {
+  const parsed = parseDateInput(value)
+  if (!parsed) return ""
+  return new Intl.DateTimeFormat("ar-EG", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsed)
+}
+
+function isFriday(value: string) {
+  const parsed = parseDateInput(value)
+  return parsed?.getDay() === 5
+}
+
+function slotTime(value: string) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ""
+  return `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`
+}
+
 export default function BookingPage() {
   const searchParams = useSearchParams()
   const initialDuration = searchParams.get("duration") === "90" ? 90 : 60
@@ -46,6 +90,7 @@ export default function BookingPage() {
   const [slotsMessage, setSlotsMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [dateError, setDateError] = useState("")
   const [userId, setUserId] = useState<string | null>(null)
 
   const price = useMemo(() => getSessionPrice(duration, discountCode), [duration, discountCode])
@@ -55,6 +100,8 @@ export default function BookingPage() {
       ? "تم تطبيق الكود بنجاح"
       : "الكود غير صالح أو منتهي"
     : ""
+  const minDate = useMemo(() => dateInputValue(new Date()), [])
+  const selectedDateLabel = useMemo(() => formatArabicDate(selectedDate), [selectedDate])
 
   useEffect(() => {
     const auth = getFirebaseClientAuth()
@@ -85,9 +132,9 @@ export default function BookingPage() {
         const loadedSlots = Array.isArray(result.slots) ? result.slots : []
         setSlots(loadedSlots)
         if (loadedSlots.length === 0) setSlotsMessage("لا تتوفر مواعيد لهذا اليوم.")
-      } catch {
+      } catch (fetchError) {
         setSlots([])
-        setSlotsMessage("تعذر تحميل المواعيد. يرجى اختيار يوم آخر.")
+        setSlotsMessage(fetchError instanceof Error ? fetchError.message : "تعذر تحميل المواعيد.")
       } finally {
         setSlotsLoading(false)
       }
@@ -96,26 +143,72 @@ export default function BookingPage() {
     void fetchSlots()
   }, [selectedDate, duration])
 
+  function handleDateChange(value: string) {
+    setError("")
+    setDateError("")
+    setSelectedSlot("")
+
+    if (!value) {
+      setSelectedDate("")
+      setSlots([])
+      setSlotsMessage("")
+      return
+    }
+
+    const parsed = parseDateInput(value)
+    if (!parsed) {
+      setSelectedDate("")
+      setDateError("صيغة التاريخ غير صحيحة.")
+      return
+    }
+
+    if (startOfDay(parsed).getTime() < startOfDay(new Date()).getTime()) {
+      setSelectedDate("")
+      setSlots([])
+      setSlotsMessage("")
+      setDateError("لا يمكن اختيار تاريخ سابق.")
+      return
+    }
+
+    if (isFriday(value)) {
+      setSelectedDate("")
+      setSlots([])
+      setSlotsMessage("لا تتوفر حجوزات يوم الجمعة.")
+      setDateError("لا تتوفر حجوزات يوم الجمعة.")
+      return
+    }
+
+    setSelectedDate(value)
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError("")
     setIsSubmitting(true)
 
+    if (!selectedDate) {
+      setIsSubmitting(false)
+      setError("يرجى اختيار اليوم أولًا.")
+      return
+    }
+
     if (!selectedSlot) {
       setIsSubmitting(false)
-      setError("يرجى اختيار تاريخ ثم موعد متاح.")
+      setError("يرجى اختيار موعد متاح.")
       return
     }
 
     const formData = new FormData(event.currentTarget)
     const payload = {
-      name: String(formData.get("name") ?? ""),
-      phone: String(formData.get("phone") ?? ""),
-      email: String(formData.get("email") ?? ""),
+      customerName: String(formData.get("name") ?? "").trim(),
+      phone: String(formData.get("phone") ?? "").trim(),
+      email: String(formData.get("email") ?? "").trim(),
+      date: selectedDate,
+      time: slotTime(selectedSlot),
       startTime: selectedSlot,
       duration,
       discountCode,
-      message: String(formData.get("message") ?? ""),
+      message: String(formData.get("message") ?? "").trim(),
       userId,
     }
 
@@ -126,6 +219,11 @@ export default function BookingPage() {
         body: JSON.stringify(payload),
       })
       const result = await response.json()
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[booking] POST /api/booking", { status: response.status, result })
+      }
+
       if (!response.ok || !result.ok) throw new Error(result.message || "تعذر إرسال طلب الحجز.")
       setSubmitted({
         bookingId: result.bookingId,
@@ -213,16 +311,27 @@ export default function BookingPage() {
                         </SelectContent>
                       </Select>
                     </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="date">اليوم</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        required
-                        value={selectedDate}
-                        onChange={(event) => setSelectedDate(event.target.value)}
-                        className="h-12 rounded-2xl bg-secondary/55"
-                      />
+                      <Label>اختاري اليوم المناسب</Label>
+                      <div className="rounded-2xl border border-border bg-secondary/35 p-3">
+                        <div className="mb-2 flex items-center gap-2 text-sm font-bold text-foreground">
+                          <CalendarDays className="h-4 w-4 text-primary" />
+                          كارت اختيار التاريخ
+                        </div>
+                        <Input
+                          id="date"
+                          type="date"
+                          required
+                          min={minDate}
+                          lang="ar-EG"
+                          value={selectedDate}
+                          onChange={(event) => handleDateChange(event.target.value)}
+                          className="h-12 rounded-xl bg-background [color-scheme:light]"
+                        />
+                        {selectedDateLabel ? <p className="mt-2 text-sm text-muted-foreground">{selectedDateLabel}</p> : null}
+                      </div>
+                      {dateError ? <p className="text-sm font-bold text-destructive">{dateError}</p> : null}
                     </div>
                   </div>
 
@@ -281,7 +390,7 @@ export default function BookingPage() {
 
                   <div className="rounded-2xl bg-secondary/50 p-4 text-sm leading-7 text-muted-foreground">
                     <CalendarDays className="mb-2 h-5 w-5 text-accent" />
-                    بعد اختيار اليوم، ستظهر لكِ المواعيد المتاحة مباشرة.
+                    تظهر المواعيد المتاحة فقط حسب اليوم المختار وساعات العمل.
                   </div>
 
                   {error ? (

@@ -1,5 +1,5 @@
 import { BookingStatusSelect } from "@/components/admin/booking-status-select"
-import { listDocuments } from "@/lib/firebase/admin"
+import { isFirebaseConfigured, listDocuments } from "@/lib/firebase/admin"
 
 function parseDate(value: unknown) {
   const date = new Date(String(value || ""))
@@ -10,6 +10,13 @@ function formatDateTime(value: unknown) {
   const date = parseDate(value)
   if (!date) return "-"
   return new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short" }).format(date)
+}
+
+function formatBookingDateTime(date: unknown, time: unknown) {
+  const dateValue = String(date || "").trim()
+  const timeValue = String(time || "").trim()
+  if (!dateValue || !timeValue) return "-"
+  return formatDateTime(`${dateValue}T${timeValue}:00`)
 }
 
 function mapStatus(status: string) {
@@ -26,6 +33,17 @@ type PageProps = {
 export default async function AdminBookingsPage({ searchParams }: PageProps) {
   const { from = "", to = "", status = "all" } = await searchParams
 
+  if (!isFirebaseConfigured()) {
+    return (
+      <div className="space-y-6" dir="rtl">
+        <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          <h1 className="text-3xl font-black text-foreground">الحجوزات</h1>
+          <p className="mt-2 text-destructive">تعذر تحميل الحجوزات: إعدادات Firebase Admin غير مكتملة.</p>
+        </div>
+      </div>
+    )
+  }
+
   const bookings = await listDocuments("bookings", {
     orderByField: "createdAt",
     orderDirection: "desc",
@@ -38,7 +56,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
   const filtered = bookings.filter((booking) => {
     const bookingStatus = String(booking.status || "pending").toLowerCase()
     if (status !== "all" && bookingStatus !== status) return false
-    const bookingDate = parseDate(booking.startTime) || parseDate(booking.createdAt)
+    const bookingDate = parseDate(`${String(booking.date || "")}T${String(booking.time || "00:00")}:00`)
     if (!bookingDate) return true
     if (fromDate && bookingDate < fromDate) return false
     if (toDate && bookingDate > toDate) return false
@@ -75,8 +93,8 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
             ) : (
               filtered.map((booking) => {
                 const statusValue = String(booking.status || "pending").toLowerCase()
-                const customerName = String(booking.customerName || booking.name || "-")
-                const amount = Number(booking.amount || booking.finalPrice || 0)
+                const customerName = String(booking.customerName || "-")
+                const amount = Number(booking.amount || 0)
                 return (
                   <tr key={String(booking.id)} className="border-t border-border text-sm">
                     <td className="px-4 py-3">
@@ -84,7 +102,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
                       <p className="text-xs text-muted-foreground">{String(booking.phone || "-")}</p>
                       <p className="text-xs text-muted-foreground">{String(booking.email || "-")}</p>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDateTime(booking.startTime)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatBookingDateTime(booking.date, booking.time)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{String(booking.duration || "-")} دقيقة</td>
                     <td className="px-4 py-3 text-muted-foreground latin">{amount.toLocaleString("en-US")} EGP</td>
                     <td className="px-4 py-3">

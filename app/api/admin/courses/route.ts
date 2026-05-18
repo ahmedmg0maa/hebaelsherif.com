@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth"
-import { getDocument, listDocuments, setDocument } from "@/lib/firebase/admin"
+import { getDocument, getFirebaseAdminErrorMessage, listDocuments, setDocument } from "@/lib/firebase/admin"
 
 function asText(value: unknown) {
   return typeof value === "string" ? value.trim() : ""
@@ -88,7 +88,10 @@ export async function POST(request: Request) {
 
   const result = await setDocument("courses", id, payload, false)
   if (!result.ok) {
-    return NextResponse.json({ ok: false, message: "تعذر حفظ الكورس." }, { status: 500 })
+    return NextResponse.json(
+      { ok: false, message: getFirebaseAdminErrorMessage(result.error) || "تعذر حفظ الكورس." },
+      { status: 500 },
+    )
   }
 
   return NextResponse.json({ ok: true, id })

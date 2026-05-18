@@ -3,7 +3,7 @@ export type SessionDuration = 60 | 90
 export const BOOKING_RULES = {
   workStartHour: 7,
   workEndHour: 20,
-  closedDay: 5, // Friday in JS getDay: Sunday=0, Friday=5
+  closedDay: 5,
   bufferMinutes: 60,
   timezone: "Africa/Cairo",
   discountCodes: ["HEBA", "WA3Y", "AWARE"],
@@ -19,6 +19,10 @@ const DATE_KEY_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/
 
 function pad(value: number) {
   return String(value).padStart(2, "0")
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
 }
 
 export function normalizeDiscountCode(code?: string) {
@@ -49,15 +53,7 @@ export function parseBookingDate(value: string) {
   if (!parts) return null
 
   const [, year, month, day, hour, minute] = parts
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    0,
-    0,
-  )
+  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), 0, 0)
   return Number.isNaN(date.getTime()) ? null : date
 }
 
@@ -69,12 +65,27 @@ export function dateKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
+export function todayDateKey() {
+  return dateKey(new Date())
+}
+
 export function parseDateKey(value: string) {
   const match = DATE_KEY_REGEX.exec(value)
   if (!match) return null
+
   const [, year, month, day] = match
-  const date = new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0, 0)
-  return Number.isNaN(date.getTime()) ? null : date
+  const y = Number(year)
+  const m = Number(month)
+  const d = Number(day)
+
+  const date = new Date(y, m - 1, d, 0, 0, 0, 0)
+  if (Number.isNaN(date.getTime())) return null
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null
+  return date
+}
+
+export function isDateBeforeToday(date: Date) {
+  return startOfDay(date).getTime() < startOfDay(new Date()).getTime()
 }
 
 export function validateBookingSlot(value: string, duration: SessionDuration) {
@@ -85,8 +96,11 @@ export function validateBookingSlot(value: string, duration: SessionDuration) {
   if (![60, 90].includes(duration)) {
     return { ok: false, message: "مدة الجلسة غير صحيحة." }
   }
+  if (isDateBeforeToday(date)) {
+    return { ok: false, message: "لا يمكن اختيار تاريخ سابق." }
+  }
   if (isClosedDay(date)) {
-    return { ok: false, message: "هذا الموعد غير متاح. يرجى اختيار موعد آخر." }
+    return { ok: false, message: "لا تتوفر حجوزات يوم الجمعة." }
   }
 
   const hour = date.getHours()
@@ -98,6 +112,7 @@ export function validateBookingSlot(value: string, duration: SessionDuration) {
   if (end.getHours() > BOOKING_RULES.workEndHour || (end.getHours() === BOOKING_RULES.workEndHour && end.getMinutes() > 0)) {
     return { ok: false, message: "هذا الموعد غير متاح. يرجى اختيار موعد آخر." }
   }
+
   return { ok: true, date }
 }
 
@@ -108,18 +123,10 @@ export type TimeSlot = {
 
 export function buildDailySlots(date: Date, duration: SessionDuration) {
   const slots: TimeSlot[] = []
-  if (isClosedDay(date)) return slots
+  if (isClosedDay(date) || isDateBeforeToday(date)) return slots
 
   for (let hour = BOOKING_RULES.workStartHour; hour < BOOKING_RULES.workEndHour; hour += 1) {
-    const candidate = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      hour,
-      0,
-      0,
-      0,
-    )
+    const candidate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 0, 0, 0)
     const validation = validateBookingSlot(candidate.toISOString(), duration)
     if (!validation.ok || !validation.date) continue
     slots.push({
@@ -127,6 +134,7 @@ export function buildDailySlots(date: Date, duration: SessionDuration) {
       value: validation.date.toISOString(),
     })
   }
+
   return slots
 }
 

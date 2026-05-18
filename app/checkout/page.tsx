@@ -123,7 +123,7 @@ export default function CheckoutPage() {
       productType: selectedProduct.type,
       productTitle: selectedProduct.title,
       amount: selectedProduct.price,
-      name: String(formData.get("name") ?? ""),
+      customerName: String(formData.get("name") ?? ""),
       email: String(formData.get("email") ?? ""),
       phone: String(formData.get("phone") ?? ""),
       paymentMethod,

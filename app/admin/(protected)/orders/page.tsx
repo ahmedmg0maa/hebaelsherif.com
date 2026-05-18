@@ -1,5 +1,5 @@
 import { OrderStatusSelect } from "@/components/admin/order-status-select"
-import { listDocuments } from "@/lib/firebase/admin"
+import { isFirebaseConfigured, listDocuments } from "@/lib/firebase/admin"
 
 function parseDate(value: unknown) {
   const date = new Date(String(value || ""))
@@ -19,6 +19,17 @@ function mapStatus(status: string) {
 }
 
 export default async function AdminOrdersPage() {
+  if (!isFirebaseConfigured()) {
+    return (
+      <div className="space-y-6" dir="rtl">
+        <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          <h1 className="text-3xl font-black text-foreground">الطلبات</h1>
+          <p className="mt-2 text-destructive">تعذر تحميل الطلبات: إعدادات Firebase Admin غير مكتملة.</p>
+        </div>
+      </div>
+    )
+  }
+
   const orders = await listDocuments("orders", {
     orderByField: "createdAt",
     orderDirection: "desc",
@@ -55,7 +66,7 @@ export default async function AdminOrdersPage() {
             ) : (
               orders.map((order) => {
                 const statusValue = String(order.status || "pending").toLowerCase()
-                const customerName = String(order.customerName || order.name || "-")
+                const customerName = String(order.customerName || "-")
                 const amount = Number(order.amount || 0)
                 return (
                   <tr key={String(order.id)} className="border-t border-border text-sm">

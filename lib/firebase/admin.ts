@@ -1,23 +1,7 @@
-import { getApps, initializeApp, type FirebaseApp } from "firebase/app"
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  limit as limitQuery,
-  orderBy,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-  type Firestore,
-  type QueryConstraint,
-  type WhereFilterOp,
-} from "firebase/firestore"
-import { dateKey } from "@/lib/booking-rules"
+import { cert, getApps, initializeApp, type App } from "firebase-admin/app"
+import { getAuth } from "firebase-admin/auth"
+import { FieldValue, getFirestore, type Firestore, type WhereFilterOp } from "firebase-admin/firestore"
+import { getStorage } from "firebase-admin/storage"
 
 type StoreDocument = Record<string, unknown>
 export type AdminRecord = { id: string } & StoreDocument
@@ -35,36 +19,55 @@ type ListOptions = {
   whereClauses?: WhereClause[]
 }
 
-let cachedApp: FirebaseApp | null = null
-let cachedDb: Firestore | null = null
+type WriteResult = {
+  ok: boolean
+  error?: string
+  message?: string
+}
 
-function firebaseConfig() {
-  return {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+type AddDocumentResult = WriteResult & {
+  id: string
+  record?: AdminRecord
+}
+
+export const FIREBASE_NOT_CONFIGURED_ERROR = "FIREBASE_NOT_CONFIGURED"
+export const FIREBASE_NOT_CONFIGURED_MESSAGE =
+  "إعدادات Firebase Admin غير مكتملة. يرجى ضبط FIREBASE_SERVICE_ACCOUNT_JSON على الخادم."
+
+let cachedDb: Firestore | null = null
+let cachedApp: App | null = null
+
+function getServiceAccount() {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
+  if (!raw) return null
+
+  try {
+    return JSON.parse(raw) as Parameters<typeof cert>[0]
+  } catch (error) {
+    console.error("Invalid FIREBASE_SERVICE_ACCOUNT_JSON:", error)
+    return null
   }
 }
 
 export function isFirebaseConfigured() {
-  const config = firebaseConfig()
-  return Boolean(config.apiKey && config.projectId && config.appId)
+  return Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim())
 }
 
-function getFirebaseApp() {
-  if (!isFirebaseConfigured()) return null
+function getAdminApp() {
   if (cachedApp) return cachedApp
-  cachedApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig())
+  const serviceAccount = getServiceAccount()
+  if (!serviceAccount) return null
+
+  cachedApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount) })
   return cachedApp
 }
 
 function getDb() {
   if (cachedDb) return cachedDb
-  const app = getFirebaseApp()
+
+  const app = getAdminApp()
   if (!app) return null
+
   cachedDb = getFirestore(app)
   return cachedDb
 }
@@ -87,23 +90,80 @@ function toSerializable(value: unknown): unknown {
   return Object.fromEntries(entries.map(([key, nested]) => [key, toSerializable(nested)]))
 }
 
-export async function addDocument(collectionName: string, data: StoreDocument) {
-  const db = getDb()
-  if (!db) {
-    return { ok: false, id: "", error: "FIREBASE_NOT_CONFIGURED" }
-  }
+function notConfiguredResult(): WriteResult {
+  return { ok: false, error: FIREBASE_NOT_CONFIGURED_ERROR, message: FIREBASE_NOT_CONFIGURED_MESSAGE }
+}
 
-  const record = {
-    ...data,
-    createdAt: typeof data.createdAt === "string" ? data.createdAt : nowISO(),
-    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : nowISO(),
+export function getFirebaseAdminErrorMessage(error?: string) {
+  return error === FIREBASE_NOT_CONFIGURED_ERROR ? FIREBASE_NOT_CONFIGURED_MESSAGE : null
+}
+
+export async function verifyFirebaseIdToken(idToken: string) {
+  const app = getAdminApp()
+  if (!app) {
+    return { ok: false as const, error: FIREBASE_NOT_CONFIGURED_ERROR, message: FIREBASE_NOT_CONFIGURED_MESSAGE }
   }
 
   try {
-    const ref = await addDoc(collection(db, collectionName), record)
+    const decoded = await getAuth(app).verifyIdToken(idToken)
+    return { ok: true as const, decoded }
+  } catch (error) {
+    console.error("Failed to verify Firebase ID token:", error)
+    return { ok: false as const, error: "INVALID_AUTH_TOKEN", message: "رمز التحقق غير صالح." }
+  }
+}
+
+function resolveStorageBucketName() {
+  const fromPrivate = process.env.FIREBASE_STORAGE_BUCKET?.trim()
+  if (fromPrivate) return fromPrivate
+
+  const fromPublic = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim()
+  if (fromPublic) return fromPublic
+
+  const serviceAccount = getServiceAccount()
+  const projectIdValue =
+    (serviceAccount as { projectId?: unknown; project_id?: unknown } | null)?.projectId ??
+    (serviceAccount as { projectId?: unknown; project_id?: unknown } | null)?.project_id
+  const projectId = typeof projectIdValue === "string" ? projectIdValue.trim() : ""
+  if (projectId) return `${projectId}.appspot.com`
+
+  return ""
+}
+
+export function getFirebaseStorageBucket() {
+  const app = getAdminApp()
+  if (!app) return null
+
+  const bucketName = resolveStorageBucketName()
+  if (!bucketName) return null
+
+  try {
+    return getStorage(app).bucket(bucketName)
+  } catch (error) {
+    console.error("Failed to initialize Firebase Storage bucket:", error)
+    return null
+  }
+}
+
+export async function addDocument(collectionName: string, data: StoreDocument): Promise<AddDocumentResult> {
+  const db = getDb()
+  if (!db) {
+    return { ...notConfiguredResult(), id: "" }
+  }
+
+  const now = nowISO()
+  const record = {
+    ...data,
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : now,
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : now,
+  }
+
+  try {
+    const ref = await db.collection(collectionName).add(record)
     return { ok: true, id: ref.id, record: { id: ref.id, ...record } as AdminRecord }
-  } catch {
-    return { ok: false, id: "", error: "WRITE_FAILED" }
+  } catch (error) {
+    console.error(`Failed to add ${collectionName} document:`, error)
+    return { ok: false, id: "", error: "WRITE_FAILED", message: "تعذر حفظ البيانات." }
   }
 }
 
@@ -112,26 +172,27 @@ export async function listDocuments(collectionName: string, options?: ListOption
   if (!db) return []
 
   try {
-    const constraints: QueryConstraint[] = []
-    for (const clause of options?.whereClauses || []) {
-      constraints.push(where(clause.field, clause.op || "==", clause.value))
-    }
-    if (options?.orderByField) {
-      constraints.push(orderBy(options.orderByField, options.orderDirection || "desc"))
-    }
-    if (typeof options?.limit === "number") {
-      constraints.push(limitQuery(options.limit))
-    }
-    const q = constraints.length
-      ? query(collection(db, collectionName), ...constraints)
-      : query(collection(db, collectionName))
+    let ref: FirebaseFirestore.Query = db.collection(collectionName)
 
-    const snapshot = await getDocs(q)
+    for (const clause of options?.whereClauses || []) {
+      ref = ref.where(clause.field, clause.op || "==", clause.value)
+    }
+
+    if (options?.orderByField) {
+      ref = ref.orderBy(options.orderByField, options.orderDirection || "desc")
+    }
+
+    if (typeof options?.limit === "number") {
+      ref = ref.limit(options.limit)
+    }
+
+    const snapshot = await ref.get()
     return snapshot.docs.map((item) => ({
       id: item.id,
       ...(toSerializable(item.data()) as StoreDocument),
     })) as AdminRecord[]
-  } catch {
+  } catch (error) {
+    console.error(`Failed to list ${collectionName} documents:`, error)
     return []
   }
 }
@@ -141,67 +202,73 @@ export async function getDocument(collectionName: string, id: string): Promise<A
   if (!db) return null
 
   try {
-    const ref = doc(db, collectionName, id)
-    const snapshot = await getDoc(ref)
-    if (!snapshot.exists()) return null
+    const snapshot = await db.collection(collectionName).doc(id).get()
+    if (!snapshot.exists) return null
     return { id: snapshot.id, ...(toSerializable(snapshot.data()) as StoreDocument) }
-  } catch {
+  } catch (error) {
+    console.error(`Failed to get ${collectionName}/${id}:`, error)
     return null
   }
 }
 
-export async function updateDocument(collectionName: string, id: string, data: StoreDocument) {
+export async function updateDocument(collectionName: string, id: string, data: StoreDocument): Promise<WriteResult> {
   const db = getDb()
-  if (!db) return { ok: false, error: "FIREBASE_NOT_CONFIGURED" }
+  if (!db) return notConfiguredResult()
 
   const payload = { ...data, updatedAt: nowISO() }
   try {
-    await updateDoc(doc(db, collectionName, id), payload)
+    await db.collection(collectionName).doc(id).update(payload)
     return { ok: true }
-  } catch {
-    return { ok: false, error: "UPDATE_FAILED" }
+  } catch (error) {
+    console.error(`Failed to update ${collectionName}/${id}:`, error)
+    return { ok: false, error: "UPDATE_FAILED", message: "تعذر تحديث البيانات." }
   }
 }
 
-export async function setDocument(collectionName: string, id: string, data: StoreDocument, merge = true) {
+export async function setDocument(
+  collectionName: string,
+  id: string,
+  data: StoreDocument,
+  merge = true,
+): Promise<WriteResult> {
   const db = getDb()
-  if (!db) return { ok: false, error: "FIREBASE_NOT_CONFIGURED" }
+  if (!db) return notConfiguredResult()
 
-  const payload = {
+  const payload: StoreDocument = {
     ...data,
     updatedAt: nowISO(),
   }
 
   if (!merge) {
-    const createdAt =
+    payload.createdAt =
       typeof data.createdAt === "string" && data.createdAt.trim().length > 0 ? data.createdAt : nowISO()
-    Object.assign(payload, { createdAt })
   }
 
   try {
-    await setDoc(doc(db, collectionName, id), payload, { merge })
+    await db.collection(collectionName).doc(id).set(payload, { merge })
     return { ok: true }
-  } catch {
-    return { ok: false, error: "SET_FAILED" }
+  } catch (error) {
+    console.error(`Failed to set ${collectionName}/${id}:`, error)
+    return { ok: false, error: "SET_FAILED", message: "تعذر حفظ البيانات." }
   }
 }
 
-export async function deleteDocument(collectionName: string, id: string) {
+export async function deleteDocument(collectionName: string, id: string): Promise<WriteResult> {
   const db = getDb()
-  if (!db) return { ok: false, error: "FIREBASE_NOT_CONFIGURED" }
+  if (!db) return notConfiguredResult()
 
   try {
-    await deleteDoc(doc(db, collectionName, id))
+    await db.collection(collectionName).doc(id).delete()
     return { ok: true }
-  } catch {
-    return { ok: false, error: "DELETE_FAILED" }
+  } catch (error) {
+    console.error(`Failed to delete ${collectionName}/${id}:`, error)
+    return { ok: false, error: "DELETE_FAILED", message: "تعذر حذف البيانات." }
   }
 }
 
-export async function listBookingsForDate(dateISOOrKey: string) {
-  const key = dateISOOrKey.slice(0, 10)
+export async function listBookingsForDate(dateKey: string) {
   const records = await listDocuments("bookings", {
-    whereClauses: [{ field: "startDate", value: key }],
+    whereClauses: [{ field: "date", value: dateKey.slice(0, 10) }],
     limit: 400,
   })
 
@@ -210,7 +277,8 @@ export async function listBookingsForDate(dateISOOrKey: string) {
       startTime: String(item.startTime || ""),
       duration: Number(item.duration || 60),
       status: item.status ? String(item.status) : undefined,
-      startDate: String(item.startDate || dateKey(new Date(String(item.startTime || "")))),
     }))
     .filter((item) => item.startTime)
 }
+
+export { FieldValue }

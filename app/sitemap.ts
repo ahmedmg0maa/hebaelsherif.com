@@ -1,9 +1,14 @@
 import type { MetadataRoute } from "next"
-import { books, courses, posts } from "@/lib/site-data"
+import { posts } from "@/lib/site-data"
+import { listCatalogBooks, listCatalogCourses } from "@/lib/catalog"
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://hebaelsharif.com"
   const now = new Date()
+  const [courses, books] = await Promise.all([
+    listCatalogCourses({ onlyActive: true }),
+    listCatalogBooks({ onlyActive: true }),
+  ])
 
   const staticRoutes = [
     "",
@@ -32,13 +37,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: route === "" ? 1 : 0.75,
     })),
     ...courses.map((course) => ({
-      url: `${baseUrl}/courses/${course.id}`,
+      url: `${baseUrl}/courses/${course.slug || course.id}`,
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.8,
     })),
     ...books.map((book) => ({
-      url: `${baseUrl}/books/${book.id}`,
+      url: `${baseUrl}/books/${book.slug || book.id}`,
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.78,

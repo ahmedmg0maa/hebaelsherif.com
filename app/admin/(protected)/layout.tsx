@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { AdminShell } from "@/components/admin/admin-shell"
 import { ADMIN_SESSION_COOKIE, hasConfiguredAdminPassword, isValidAdminSessionToken } from "@/lib/admin-auth"
 
+export const dynamic = "force-dynamic"
+
 export default async function AdminProtectedLayout({ children }: { children: React.ReactNode }) {
   if (!hasConfiguredAdminPassword()) {
     redirect("/admin/login?setup=1")

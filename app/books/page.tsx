@@ -6,13 +6,15 @@ import { Footer } from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
 import { listCatalogBooks } from "@/lib/catalog"
 
+export const dynamic = "force-dynamic"
+
 export const metadata: Metadata = {
   title: "الكتب",
   description: "كتب هبة الشريف المتاحة حاليًا.",
 }
 
 export default async function BooksPage() {
-  const books = await listCatalogBooks({ onlyActive: true, allowFallback: true })
+  const books = await listCatalogBooks({ onlyActive: true })
 
   return (
     <>

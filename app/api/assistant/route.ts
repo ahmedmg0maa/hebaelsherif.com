@@ -21,19 +21,19 @@ function actionsFor(text: string): Action[] {
   if (containsAny(text, ["كتاب", "كتب"])) {
     return [
       { label: "كل الكتب", href: "/books", tone: "primary" },
-      { label: "باب الخروج", href: "/books/bab-el-khorog", tone: "secondary" },
+      { label: "الذهاب للحساب", href: "/account", tone: "secondary" },
     ]
   }
 
   if (containsAny(text, ["كورس", "برنامج", "تعلم"])) {
     return [
       { label: "كل الكورسات", href: "/courses", tone: "primary" },
-      { label: "افهم نفسك", href: "/courses/efham-nafsak", tone: "secondary" },
+      { label: "الذهاب للحساب", href: "/account", tone: "secondary" },
     ]
   }
 
   return [
-    { label: "ابدئي من هنا", href: "/services", tone: "primary" },
+    { label: "استكشفي الخدمات", href: "/services", tone: "primary" },
     { label: "احجزي جلسة", href: "/booking", tone: "secondary" },
   ]
 }
@@ -43,15 +43,15 @@ function replyFor(text: string) {
     return "اختاري المدة والموعد المناسبين، وستظهر لكِ المواعيد المتاحة مباشرة داخل صفحة الحجز."
   }
   if (containsAny(text, ["كتاب", "كتب"])) {
-    return "تصفحي قسم الكتب واختاري الإصدار الأقرب لمرحلتك الحالية."
+    return "تصفحي قسم الكتب المتاحة حاليًا، وبعد الدفع وتفعيل الطلب سيظهر التحميل داخل حسابك."
   }
   if (containsAny(text, ["كورس", "برنامج", "تعلم"])) {
-    return "اختاري الكورس الأنسب لاحتياجك، ويمكنكِ مقارنة كل البرامج قبل القرار."
+    return "تصفحي الكورسات النشطة، وبعد تفعيل الطلب المدفوع سيظهر رابط الدخول داخل حسابك."
   }
   if (containsAny(text, ["سعر", "تكلفة"])) {
     return "أسعار الجلسات: 60 دقيقة — 1200 ج.م، و90 دقيقة — 1500 ج.م."
   }
-  return "اختاري المسار الأقرب لاحتياجك، وسنرشدكِ مباشرة للصفحة الأنسب."
+  return "اختاري المسار الأقرب لاحتياجك، وسنوجّهك مباشرة للصفحة المناسبة."
 }
 
 export async function POST(request: Request) {
@@ -68,6 +68,6 @@ export async function POST(request: Request) {
       suggestedActions: actionsFor(text),
     })
   } catch {
-    return NextResponse.json({ ok: false, message: "تعذر تشغيل المساعد حاليًا." }, { status: 500 })
+    return NextResponse.json({ ok: false, message: "تعذر تشغيل المساعد الآن." }, { status: 500 })
   }
 }

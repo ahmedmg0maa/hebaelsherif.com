@@ -50,7 +50,6 @@ type UserBooking = {
   status: string
   date?: string
   time?: string
-  startTime?: string
   createdAt?: string
 }
 
@@ -73,6 +72,19 @@ function toISODate(value: unknown) {
 function toNumber(value: unknown) {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function resolveAccountName(user: User, storedName?: unknown) {
+  const fromDoc = typeof storedName === "string" ? storedName.trim() : ""
+  if (fromDoc) return fromDoc
+
+  const fromAuth = typeof user.displayName === "string" ? user.displayName.trim() : ""
+  if (fromAuth) return fromAuth
+
+  const fromEmail = typeof user.email === "string" ? user.email.trim() : ""
+  if (fromEmail) return fromEmail
+
+  return user.uid
 }
 
 function bookingStatusLabel(status: string) {
@@ -125,15 +137,14 @@ function mapBookingsFromSnapshot(snapshot: Awaited<ReturnType<typeof getDocs>>) 
     const data = item.data() as Record<string, unknown>
     return {
       id: item.id,
-      customerName: String(data.customerName || data.name || ""),
+      customerName: String(data.customerName || ""),
       email: String(data.email || ""),
       phone: String(data.phone || ""),
       duration: toNumber(data.duration) || 60,
-      amount: toNumber(data.amount || data.finalPrice),
+      amount: toNumber(data.amount),
       status: String(data.status || "pending").toLowerCase(),
-      date: String(data.date || data.startDate || ""),
+      date: String(data.date || ""),
       time: String(data.time || ""),
-      startTime: String(data.startTime || ""),
       createdAt: String(data.createdAt || ""),
     } as UserBooking
   })
@@ -149,6 +160,7 @@ export default function AccountPage() {
   const [bookAccessMap, setBookAccessMap] = useState<Record<string, BookAccess>>({})
   const [loadingData, setLoadingData] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
+  const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [configError, setConfigError] = useState("")
@@ -202,7 +214,7 @@ export default function AccountPage() {
 
         const baseProfile: AccountUser = {
           uid: user.uid,
-          name: user.displayName || "المستخدمة",
+          name: resolveAccountName(user),
           email: user.email || "",
           phone: "",
           createdAt: new Date().toISOString(),
@@ -223,7 +235,7 @@ export default function AccountPage() {
           const data = userSnap.data() as Record<string, unknown>
           const loaded: AccountUser = {
             uid: user.uid,
-            name: String(data.name || user.displayName || "المستخدمة"),
+            name: resolveAccountName(user, data.name),
             email: String(data.email || user.email || ""),
             phone: String(data.phone || ""),
             createdAt: String(data.createdAt || ""),
@@ -232,7 +244,9 @@ export default function AccountPage() {
           setProfilePhone(loaded.phone)
         }
 
-        const ordersByUser = mapOrdersFromSnapshot(await getDocs(query(collection(db, "orders"), where("userId", "==", user.uid))))
+        const ordersByUser = mapOrdersFromSnapshot(
+          await getDocs(query(collection(db, "orders"), where("userId", "==", user.uid))),
+        )
         const ordersByEmail = user.email
           ? mapOrdersFromSnapshot(await getDocs(query(collection(db, "orders"), where("email", "==", user.email))))
           : []
@@ -335,9 +349,16 @@ export default function AccountPage() {
     }
 
     try {
+      const name = registerName.trim()
+      if (!name) {
+        setError("يرجى إدخال الاسم الكامل.")
+        setActionLoading(false)
+        return
+      }
+
       const credential = await createUserWithEmailAndPassword(auth, registerEmail.trim(), registerPassword)
-      const name = registerName.trim() || "المستخدمة"
       await updateProfile(credential.user, { displayName: name })
+
       const now = new Date().toISOString()
       await setDoc(doc(db, "users", credential.user.uid), {
         uid: credential.user.uid,
@@ -347,6 +368,7 @@ export default function AccountPage() {
         createdAt: now,
         updatedAt: now,
       })
+
       setSuccess("تم إنشاء الحساب بنجاح.")
       setRegisterPassword("")
     } catch {
@@ -391,6 +413,21 @@ export default function AccountPage() {
     }
   }
 
+  async function handleBookDownload(orderId: string) {
+    if (!currentUser) return
+    setError("")
+
+    try {
+      setDownloadingOrderId(orderId)
+      const token = await currentUser.getIdToken()
+      globalThis.location.assign(`/api/download/${encodeURIComponent(orderId)}?token=${encodeURIComponent(token)}`)
+    } catch {
+      setError("تعذر بدء تحميل الكتاب الآن. يرجى المحاولة مرة أخرى.")
+    } finally {
+      setDownloadingOrderId(null)
+    }
+  }
+
   if (!authReady) {
     return (
       <>
@@ -432,9 +469,7 @@ export default function AccountPage() {
                 <UserRound className="h-7 w-7" />
               </div>
               <h1 className="mt-5 text-4xl font-black text-foreground sm:text-5xl">حسابك الشخصي</h1>
-              <p className="mt-4 leading-8 text-muted-foreground">
-                سجّلي الدخول لمتابعة الحجوزات والطلبات والمنتجات المفعّلة في مكان واحد.
-              </p>
+              <p className="mt-4 leading-8 text-muted-foreground">سجّلي الدخول لمتابعة حجوزاتك وطلباتك ومنتجاتك المفعّلة.</p>
               <div className="mt-7 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl border border-border bg-background p-4 text-center">
                   <BookOpen className="mx-auto h-6 w-6 text-accent" />
@@ -577,7 +612,9 @@ export default function AccountPage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="eyebrow">حسابي</p>
-                <h1 className="mt-3 text-4xl font-black text-foreground sm:text-5xl">مرحبًا، {profile?.name || "المستخدمة"}</h1>
+                <h1 className="mt-3 text-4xl font-black text-foreground sm:text-5xl">
+                  مرحبًا، {profile?.name || resolveAccountName(currentUser)}
+                </h1>
                 <p className="mt-3 text-muted-foreground">{profile?.email}</p>
               </div>
               <div className="flex gap-3">
@@ -647,7 +684,7 @@ export default function AccountPage() {
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                         ) : (
-                          <span className="text-sm text-muted-foreground">سيتم تفعيل رابط الدخول قريبًا</span>
+                          <span className="text-sm text-muted-foreground">سيتم تفعيل رابط الدخول قريبًا.</span>
                         )}
                       </div>
                     </article>
@@ -674,15 +711,15 @@ export default function AccountPage() {
                           عرض الكتاب
                         </Link>
                         {access?.fileUrl ? (
-                          <a
-                            href={access.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-sm font-bold text-primary"
+                          <button
+                            type="button"
+                            onClick={() => void handleBookDownload(item.id)}
+                            disabled={downloadingOrderId === item.id}
+                            className="inline-flex items-center gap-1 text-sm font-bold text-primary disabled:opacity-60"
                           >
-                            تحميل الكتاب
+                            {downloadingOrderId === item.id ? "جاري التحميل..." : "تحميل الكتاب"}
                             <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-sm text-muted-foreground">الملف غير متاح بعد، تواصلي مع الدعم.</span>
                         )}

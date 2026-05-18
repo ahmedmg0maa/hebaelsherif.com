@@ -1,4 +1,3 @@
-import { books as fallbackBooks, courses as fallbackCourses } from "@/lib/site-data"
 import { getDocument, listDocuments, type AdminRecord } from "@/lib/firebase/admin"
 
 export type ProductStatus = "active" | "draft" | "hidden"
@@ -92,64 +91,26 @@ function mapBookRecord(record: AdminRecord): BookProduct | null {
   }
 }
 
-function fallbackCourseCatalog(): CourseProduct[] {
-  return fallbackCourses.map((item) => ({
-    id: item.id,
-    title: item.title,
-    slug: item.id,
-    description: item.description,
-    shortDescription: item.subtitle,
-    price: item.price,
-    coverImageUrl: "",
-    status: "active",
-    lessonsCount: item.lessons,
-    duration: item.duration,
-    accessUrl: "",
-    createdAt: "",
-    updatedAt: "",
-  }))
-}
-
-function fallbackBookCatalog(): BookProduct[] {
-  return fallbackBooks.map((item) => ({
-    id: item.id,
-    title: item.title,
-    slug: item.id,
-    description: item.description,
-    shortDescription: item.subtitle,
-    price: item.price,
-    coverImageUrl: "",
-    fileUrl: "",
-    status: "active",
-    createdAt: "",
-    updatedAt: "",
-  }))
-}
-
-export async function listCatalogCourses(options?: { onlyActive?: boolean; allowFallback?: boolean }) {
+export async function listCatalogCourses(options?: { onlyActive?: boolean }) {
   const records = await listDocuments("courses", {
     orderByField: "createdAt",
     orderDirection: "desc",
     limit: 1000,
   })
-  const mapped = records.map(mapCourseRecord).filter(Boolean) as CourseProduct[]
-
-  const base = records.length === 0 && options?.allowFallback !== false ? fallbackCourseCatalog() : mapped
-  if (options?.onlyActive) return base.filter((item) => item.status === "active")
-  return base
+  const courses = records.map(mapCourseRecord).filter(Boolean) as CourseProduct[]
+  if (options?.onlyActive) return courses.filter((item) => item.status === "active")
+  return courses
 }
 
-export async function listCatalogBooks(options?: { onlyActive?: boolean; allowFallback?: boolean }) {
+export async function listCatalogBooks(options?: { onlyActive?: boolean }) {
   const records = await listDocuments("books", {
     orderByField: "createdAt",
     orderDirection: "desc",
     limit: 1000,
   })
-  const mapped = records.map(mapBookRecord).filter(Boolean) as BookProduct[]
-
-  const base = records.length === 0 && options?.allowFallback !== false ? fallbackBookCatalog() : mapped
-  if (options?.onlyActive) return base.filter((item) => item.status === "active")
-  return base
+  const books = records.map(mapBookRecord).filter(Boolean) as BookProduct[]
+  if (options?.onlyActive) return books.filter((item) => item.status === "active")
+  return books
 }
 
 async function getCourseFromFirestore(slugOrId: string) {
@@ -177,17 +138,9 @@ async function getBookFromFirestore(slugOrId: string) {
 }
 
 export async function getCatalogCourseBySlug(slugOrId: string) {
-  const product = await getCourseFromFirestore(slugOrId)
-  if (product) return product
-  const hasAnyCourses = (await listDocuments("courses", { limit: 1 })).length > 0
-  if (hasAnyCourses) return null
-  return fallbackCourseCatalog().find((item) => item.id === slugOrId || item.slug === slugOrId) || null
+  return getCourseFromFirestore(slugOrId)
 }
 
 export async function getCatalogBookBySlug(slugOrId: string) {
-  const product = await getBookFromFirestore(slugOrId)
-  if (product) return product
-  const hasAnyBooks = (await listDocuments("books", { limit: 1 })).length > 0
-  if (hasAnyBooks) return null
-  return fallbackBookCatalog().find((item) => item.id === slugOrId || item.slug === slugOrId) || null
+  return getBookFromFirestore(slugOrId)
 }

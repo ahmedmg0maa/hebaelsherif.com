@@ -5,8 +5,10 @@ import { Footer } from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
 import { listCatalogCourses } from "@/lib/catalog"
 
+export const dynamic = "force-dynamic"
+
 export default async function CoursesPage() {
-  const courses = await listCatalogCourses({ onlyActive: true, allowFallback: true })
+  const courses = await listCatalogCourses({ onlyActive: true })
 
   return (
     <>

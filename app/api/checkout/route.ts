@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { addDocument } from "@/lib/firebase/admin"
+import { addDocument, getFirebaseAdminErrorMessage, isFirebaseConfigured } from "@/lib/firebase/admin"
 import { getCatalogBookBySlug, getCatalogCourseBySlug } from "@/lib/catalog"
 
 function text(value: unknown) {
@@ -11,19 +11,33 @@ function makeOrderNumber() {
   return `HB-${new Date().getFullYear()}-${random}`
 }
 
+function firebaseConfigResponse() {
+  return NextResponse.json(
+    {
+      ok: false,
+      message: "تعذر تنفيذ الطلب الآن. إعدادات Firebase Admin غير مكتملة (FIREBASE_SERVICE_ACCOUNT_JSON).",
+    },
+    { status: 503 },
+  )
+}
+
 export async function POST(request: Request) {
+  if (!isFirebaseConfigured()) {
+    return firebaseConfigResponse()
+  }
+
   try {
     const body = await request.json()
     const productId = text(body.productId)
     const productType = text(body.productType)
-    const customerName = text(body.name)
+    const customerName = text(body.customerName || body.name)
     const email = text(body.email)
     const phone = text(body.phone)
     const paymentMethod = text(body.paymentMethod) || "manual"
-    const userId = text(body.userId) || undefined
+    const userId = text(body.userId)
 
     if (!productId || !productType || !customerName || !email || !phone) {
-      return NextResponse.json({ ok: false, message: "برجاء استكمال بيانات الطلب." }, { status: 400 })
+      return NextResponse.json({ ok: false, message: "يرجى استكمال بيانات الطلب." }, { status: 400 })
     }
 
     let resolvedProduct:
@@ -61,27 +75,30 @@ export async function POST(request: Request) {
     }
 
     const orderNumber = makeOrderNumber()
-    const saved = await addDocument("orders", {
+    const now = new Date().toISOString()
+    const payload: Record<string, unknown> = {
       orderNumber,
-      userId: userId || null,
       productId: resolvedProduct.id,
       productType: resolvedProduct.type,
       productTitle: resolvedProduct.title,
       amount: resolvedProduct.price,
       currency: "EGP",
       customerName,
-      name: customerName,
       email,
       phone,
       paymentMethod,
       status: "pending",
-    })
+      createdAt: now,
+      updatedAt: now,
+      source: "website",
+    }
+    if (userId) payload.userId = userId
 
+    const saved = await addDocument("orders", payload)
     if (!saved.ok || !saved.id) {
-      return NextResponse.json(
-        { ok: false, message: "تعذر إرسال الطلب حاليًا. يرجى المحاولة مرة أخرى." },
-        { status: 503 },
-      )
+      const message =
+        getFirebaseAdminErrorMessage(saved.error) || "تعذر إرسال الطلب حاليًا. يرجى المحاولة مرة أخرى."
+      return NextResponse.json({ ok: false, message }, { status: 503 })
     }
 
     return NextResponse.json({

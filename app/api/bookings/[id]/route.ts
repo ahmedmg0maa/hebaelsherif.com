@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { getDocument, updateDocument } from "@/lib/firebase/admin"
+import { getDocument, getFirebaseAdminErrorMessage, updateDocument } from "@/lib/firebase/admin"
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth"
+import { enqueueNotification } from "@/lib/notifications"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -52,9 +53,29 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, message: "حالة الحجز غير صالحة." }, { status: 400 })
   }
 
+  const existingBooking = await getDocument("bookings", id)
+  if (!existingBooking) {
+    return NextResponse.json({ ok: false, message: "الحجز غير موجود." }, { status: 404 })
+  }
+
+  if (String(existingBooking.status || "").toLowerCase() === status) {
+    return NextResponse.json({ ok: true, status })
+  }
+
   const result = await updateDocument("bookings", id, { status })
   if (!result.ok) {
-    return NextResponse.json({ ok: false, message: "تعذر تحديث حالة الحجز." }, { status: 500 })
+    return NextResponse.json(
+      { ok: false, message: getFirebaseAdminErrorMessage(result.error) || "تعذر تحديث حالة الحجز." },
+      { status: 500 },
+    )
+  }
+
+  if (status === "approved") {
+    await enqueueNotification("booking_approved", {
+      bookingId: id,
+      userId: String(existingBooking.userId || ""),
+      email: String(existingBooking.email || ""),
+    })
   }
 
   return NextResponse.json({ ok: true, status })

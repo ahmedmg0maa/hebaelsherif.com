@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { getDocument, updateDocument } from "@/lib/firebase/admin"
+import { getDocument, getFirebaseAdminErrorMessage, updateDocument } from "@/lib/firebase/admin"
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin-auth"
+import { enqueueNotification } from "@/lib/notifications"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -52,9 +53,29 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, message: "حالة الطلب غير صالحة." }, { status: 400 })
   }
 
+  const existingOrder = await getDocument("orders", id)
+  if (!existingOrder) {
+    return NextResponse.json({ ok: false, message: "الطلب غير موجود." }, { status: 404 })
+  }
+
+  if (String(existingOrder.status || "").toLowerCase() === status) {
+    return NextResponse.json({ ok: true, status })
+  }
+
   const result = await updateDocument("orders", id, { status })
   if (!result.ok) {
-    return NextResponse.json({ ok: false, message: "تعذر تحديث حالة الطلب." }, { status: 500 })
+    return NextResponse.json(
+      { ok: false, message: getFirebaseAdminErrorMessage(result.error) || "تعذر تحديث حالة الطلب." },
+      { status: 500 },
+    )
+  }
+
+  if (status === "paid") {
+    await enqueueNotification("order_paid", {
+      orderId: id,
+      userId: String(existingOrder.userId || ""),
+      email: String(existingOrder.email || ""),
+    })
   }
 
   return NextResponse.json({ ok: true, status })

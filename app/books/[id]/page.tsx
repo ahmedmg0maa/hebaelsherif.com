@@ -4,14 +4,11 @@ import { ArrowRight, BookOpen, CreditCard, Sparkles } from "lucide-react"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
-import { getCatalogBookBySlug, listCatalogBooks } from "@/lib/catalog"
+import { getCatalogBookBySlug } from "@/lib/catalog"
 
 type PageProps = { params: Promise<{ id: string }> }
 
-export async function generateStaticParams() {
-  const books = await listCatalogBooks({ onlyActive: true, allowFallback: true })
-  return books.map((book) => ({ id: book.slug || book.id }))
-}
+export const dynamic = "force-dynamic"
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params

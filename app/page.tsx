@@ -9,6 +9,8 @@ import { BooksPreview } from "@/components/home/books-preview"
 import { TestimonialsSection } from "@/components/home/testimonials-section"
 import { FinalCtaSection } from "@/components/home/final-cta-section"
 
+export const dynamic = "force-dynamic"
+
 export default function HomePage() {
   return (
     <>
