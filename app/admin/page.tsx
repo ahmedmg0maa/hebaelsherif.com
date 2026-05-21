@@ -71,6 +71,8 @@ export default async function AdminDashboardPage() {
   const paidOrders = orders.filter((item) => String(item.status || "").toLowerCase() === "paid")
   const pendingOrders = orders.filter((item) => String(item.status || "").toLowerCase() === "pending")
   const pendingBookings = bookings.filter((item) => String(item.status || "").toLowerCase() === "pending")
+  const approvedBookings = bookings.filter((item) => String(item.status || "").toLowerCase() === "approved")
+  const completedBookings = bookings.filter((item) => String(item.status || "").toLowerCase() === "completed")
   const todayBookings = bookings.filter((item) => isTodayInCairo(item.createdAt))
   const revenue = paidOrders.reduce((sum, item) => sum + numberValue(item.amount), 0)
   const recentOrders = orders.slice(0, 6)
@@ -79,6 +81,8 @@ export default async function AdminDashboardPage() {
   const stats = [
     { name: "إجمالي الحجوزات", value: bookings.length, note: "كل الحجوزات المسجلة", icon: Calendar },
     { name: "حجوزات قيد المراجعة", value: pendingBookings.length, note: "تحتاج متابعة", icon: Calendar },
+    { name: "حجوزات مقبولة", value: approvedBookings.length, note: "مواعيد تم قبولها", icon: Calendar },
+    { name: "حجوزات مكتملة", value: completedBookings.length, note: "جلسات تمت بنجاح", icon: Calendar },
     { name: "طلبات قيد المراجعة", value: pendingOrders.length, note: "بانتظار تأكيد الدفع", icon: ShoppingCart },
     { name: "طلبات مدفوعة", value: paidOrders.length, note: "تم تفعيلها", icon: ShoppingCart },
     { name: "إيراد تقديري", value: `${revenue.toLocaleString("ar-EG")} ج.م`, note: "من الطلبات المدفوعة", icon: TrendingUp },
@@ -104,6 +108,28 @@ export default async function AdminDashboardPage() {
           </div>
         ))}
       </div>
+
+      <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+        <h2 className="text-2xl font-black text-foreground">إجراءات سريعة</h2>
+        <p className="mt-2 text-sm text-muted-foreground">اختصارات لإدارة العمليات اليومية بسرعة من نفس الشاشة.</p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link href="/admin/books" className="inline-flex">
+            <Button className="rounded-full">إضافة/تعديل كتاب</Button>
+          </Link>
+          <Link href="/admin/courses" className="inline-flex">
+            <Button className="rounded-full" variant="outline">إضافة/تعديل كورس</Button>
+          </Link>
+          <Link href="/admin/orders" className="inline-flex">
+            <Button className="rounded-full" variant="outline">مراجعة الطلبات</Button>
+          </Link>
+          <Link href="/admin/bookings" className="inline-flex">
+            <Button className="rounded-full" variant="outline">مراجعة الحجوزات</Button>
+          </Link>
+          <Link href="/admin/diagnostics" className="inline-flex">
+            <Button className="rounded-full" variant="outline">تشخيص البيئة</Button>
+          </Link>
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">

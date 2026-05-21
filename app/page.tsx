@@ -4,11 +4,13 @@ import { Footer } from "@/components/layout/footer"
 import { HeroSection } from "@/components/home/hero-section"
 import { MissionSection } from "@/components/home/mission-section"
 import { TrustSection } from "@/components/home/trust-section"
+import { StartHereSection } from "@/components/home/start-here-section"
 import { ServicesPreview } from "@/components/home/services-preview"
 import { CoursesPreview } from "@/components/home/courses-preview"
 import { BooksPreview } from "@/components/home/books-preview"
 import { TestimonialsSection } from "@/components/home/testimonials-section"
 import { FinalCtaSection } from "@/components/home/final-cta-section"
+import { TransformationSection } from "@/components/home/transformation-section"
 
 export const dynamic = "force-dynamic"
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://hebaelsharif.com"
@@ -34,9 +36,11 @@ export default function HomePage() {
       <Header />
       <main>
         <HeroSection />
+        <StartHereSection />
         <MissionSection />
-        <BooksPreview />
+        <TransformationSection />
         <CoursesPreview />
+        <BooksPreview />
         <ServicesPreview />
         <TrustSection />
         <TestimonialsSection />

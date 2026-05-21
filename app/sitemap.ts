@@ -1,5 +1,4 @@
 import type { MetadataRoute } from "next"
-import { posts } from "@/lib/site-data"
 import { listCatalogBooks, listCatalogCourses } from "@/lib/catalog"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -47,12 +46,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.78,
-    })),
-    ...posts.map((post) => ({
-      url: `${baseUrl}/blog/${post.id}`,
-      lastModified: now,
-      changeFrequency: "monthly" as const,
-      priority: 0.7,
     })),
   ]
 }

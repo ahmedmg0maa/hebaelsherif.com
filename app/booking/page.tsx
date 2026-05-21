@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react"
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
 import { CalendarDays, CheckCircle2, MessageCircle } from "lucide-react"
@@ -301,6 +302,18 @@ export default function BookingPage() {
                 اختاري المدة والموعد المناسب، وسنساعدكِ على بدء جلسة واضحة وهادئة تناسب احتياجك.
               </p>
 
+              <div className="mt-6 grid gap-3">
+                {[
+                  "1) اختاري مدة الجلسة المناسبة.",
+                  "2) اختاري اليوم والوقت المتاح.",
+                  "3) أرسلي الطلب وسنؤكد الحجز بعد المراجعة.",
+                ].map((item) => (
+                  <p key={item} className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground/85">
+                    {item}
+                  </p>
+                ))}
+              </div>
+
               <div className="mt-8 grid gap-3">
                 <div className="rounded-2xl border border-border bg-card p-4">
                   <p className="font-bold text-foreground">جلسة 60 دقيقة — 1200 ج.م</p>
@@ -422,15 +435,15 @@ export default function BookingPage() {
                     <p className="text-sm font-bold text-foreground">ملخص الحجز</p>
                     <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
                       <span>السعر الأساسي</span>
-                      <span className="font-bold text-foreground">{price.originalPrice.toLocaleString("en-US")} ج.م</span>
+                      <span className="font-bold text-foreground">{price.originalPrice.toLocaleString("ar-EG")} ج.م</span>
                     </div>
                     {price.discountApplied ? (
                       <div className="mt-2 flex items-center justify-between text-sm text-accent">
                         <span>السعر بعد الكود</span>
-                        <span className="font-bold">{price.finalPrice.toLocaleString("en-US")} ج.م</span>
+                        <span className="font-bold">{price.finalPrice.toLocaleString("ar-EG")} ج.م</span>
                       </div>
                     ) : null}
-                    <p className="mt-3 text-3xl font-black text-primary latin">{price.finalPrice.toLocaleString("en-US")} EGP</p>
+                    <p className="mt-3 text-3xl font-black text-primary latin">{price.finalPrice.toLocaleString("ar-EG")} ج.م</p>
                   </div>
 
                   <div className="space-y-2">
@@ -457,6 +470,12 @@ export default function BookingPage() {
                     <MessageCircle className="h-5 w-5" />
                     {isSubmitting ? "جاري إرسال الطلب..." : "إرسال طلب الحجز"}
                   </Button>
+                  <div className="text-center text-sm text-muted-foreground">
+                    تحتاجين مساعدة سريعة؟{" "}
+                    <Link href="/contact" className="font-bold text-primary hover:text-accent">
+                      تواصلي مع الدعم
+                    </Link>
+                  </div>
                 </form>
               )}
             </div>

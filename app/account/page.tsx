@@ -150,6 +150,34 @@ export default function AccountPage() {
     return buildWhatsAppUrl(message)
   }, [bookings, orders])
 
+  const latestPaidCourse = useMemo(() => paidCourses[0] || null, [paidCourses])
+  const latestPaidBook = useMemo(() => paidBooks[0] || null, [paidBooks])
+
+  const continueJourney = useMemo(() => {
+    if (latestPaidCourse) {
+      const courseProgress = courseProgressMap[text(latestPaidCourse.productId)] || null
+      return {
+        title: latestPaidCourse.productTitle,
+        subtitle: "استكملي رحلتك التعليمية خطوة بخطوة.",
+        ctaLabel: "كمّلي الرحلة",
+        href: `/account/protected/course/${latestPaidCourse.productId}`,
+        progressLabel: courseProgress ? `${courseProgress.progressPercent}%` : "0%",
+      }
+    }
+
+    if (latestPaidBook) {
+      return {
+        title: latestPaidBook.productTitle,
+        subtitle: "كتابك متاح داخل حسابك ويمكنك العودة له في أي وقت.",
+        ctaLabel: "افتحي الكتاب",
+        href: `/account/protected/book/${latestPaidBook.productId}`,
+        progressLabel: "محتوى مفعّل",
+      }
+    }
+
+    return null
+  }, [courseProgressMap, latestPaidBook, latestPaidCourse])
+
   useEffect(() => {
     if (!hasFirebasePublicConfig()) {
       setAuthReady(true)
@@ -591,6 +619,44 @@ export default function AccountPage() {
               <p className="mt-2 text-3xl font-black text-foreground latin">{paidBooks.length}</p>
             </div>
           </div>
+
+          <section className="mt-8 rounded-[2rem] border border-border bg-card p-6">
+            <h2 className="text-2xl font-black text-foreground">رحلتي الحالية</h2>
+            {!continueJourney ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-border bg-muted/10 p-6 text-center">
+                <p className="font-bold text-foreground">ابدئي رحلتك الأولى من هنا.</p>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">عند تفعيل أول طلب كورس أو كتاب سيظهر هنا زر متابعة مباشر.</p>
+                <div className="mt-4 flex flex-wrap justify-center gap-3">
+                  <Link href="/courses">
+                    <Button size="sm" variant="outline" className="rounded-full bg-transparent">
+                      تصفحي الكورسات
+                    </Button>
+                  </Link>
+                  <Link href="/books">
+                    <Button size="sm" variant="outline" className="rounded-full bg-transparent">
+                      تصفحي الكتب
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <article className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 p-5">
+                <p className="text-xs font-bold text-primary">استمرار رحلتك</p>
+                <h3 className="mt-2 text-xl font-black text-foreground">{continueJourney.title}</h3>
+                <p className="mt-2 text-sm leading-7 text-muted-foreground">{continueJourney.subtitle}</p>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-bold text-foreground">
+                    {continueJourney.progressLabel}
+                  </span>
+                  <Link href={continueJourney.href}>
+                    <Button className="rounded-full bg-[var(--burgundy)] text-primary-foreground hover:bg-[var(--burgundy)]/90">
+                      {continueJourney.ctaLabel}
+                    </Button>
+                  </Link>
+                </div>
+              </article>
+            )}
+          </section>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
             <section className="rounded-[2rem] border border-border bg-card p-6">

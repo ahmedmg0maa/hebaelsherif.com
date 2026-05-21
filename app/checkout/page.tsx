@@ -262,7 +262,7 @@ export default function CheckoutPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="email">البريد الإلكتروني</Label>
-                    <Input id="email" name="email" type="email" required className="h-12 rounded-2xl bg-background" placeholder="name@email.com" />
+                    <Input id="email" name="email" type="email" required className="h-12 rounded-2xl bg-background" placeholder="name@example.com" />
                   </div>
 
                   <div className="space-y-2">

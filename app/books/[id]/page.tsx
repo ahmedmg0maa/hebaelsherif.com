@@ -1,11 +1,15 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowRight, BookOpen, CreditCard, Sparkles } from "lucide-react"
+import { ArrowRight, CheckCircle2, CreditCard, ShieldCheck } from "lucide-react"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
+import { ProductCover } from "@/components/product-cover"
 import { Button } from "@/components/ui/button"
 import { getCatalogBookBySlug } from "@/lib/catalog"
 import { ViewProductTrack } from "@/components/analytics/view-product-track"
+import { PremiumBadge } from "@/components/premium/premium-badge"
+import { PremiumCTA } from "@/components/premium/premium-cta"
+import { SupportNotice } from "@/components/premium/support-notice"
 
 type PageProps = { params: Promise<{ id: string }> }
 
@@ -17,7 +21,7 @@ export async function generateMetadata({ params }: PageProps) {
   if (!book || book.status !== "active") return {}
   return {
     title: `${book.title} | كتب هبة الشريف`,
-    description: book.description,
+    description: book.description || book.shortDescription,
   }
 }
 
@@ -26,76 +30,84 @@ export default async function BookDetailsPage({ params }: PageProps) {
   const book = await getCatalogBookBySlug(id)
   if (!book || book.status !== "active") notFound()
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://hebaelsharif.com"
-  const bookSchema = {
-    "@context": "https://schema.org",
-    "@type": "Book",
-    name: book.title,
-    description: book.description,
-    inLanguage: "ar",
-    author: {
-      "@type": "Person",
-      name: "هبة الشريف",
-    },
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "EGP",
-      price: book.price,
-      availability: "https://schema.org/InStock",
-      url: `${siteUrl}/checkout?type=book&id=${book.id}`,
-    },
-  }
-
   return (
     <>
       <Header />
       <main dir="rtl">
         <ViewProductTrack productId={book.id} productType="book" price={book.price} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(bookSchema) }} />
         <section className="pt-20 section-padding soft-gradient sm:pt-24">
-          <div className="container-brand grid gap-10 lg:grid-cols-[1fr_0.42fr] lg:items-start">
+          <div className="container-brand grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div>
               <Link href="/books" className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary">
-                <ArrowRight className="h-4 w-4" /> العودة للكتب
+                <ArrowRight className="h-4 w-4" />
+                العودة إلى الكتب
               </Link>
-              <p className="eyebrow mt-8">كتاب</p>
-              <h1 className="mt-4 text-4xl font-black leading-tight text-foreground sm:text-5xl lg:text-6xl">{book.title}</h1>
-              <p className="mt-4 text-2xl font-bold text-primary">{book.shortDescription}</p>
-              <p className="mt-6 max-w-3xl text-base leading-8 text-muted-foreground sm:text-lg">{book.description}</p>
+              <div className="mt-8">
+                <PremiumBadge tone="accent">كتاب رقمي علاجي</PremiumBadge>
+              </div>
+              <h1 className="mt-4 premium-heading-xl">{book.title}</h1>
+              <p className="mt-5 text-xl font-bold leading-9 text-primary">{book.shortDescription || "كتاب يساعدك على ترتيب الداخل بهدوء."}</p>
+              <p className="mt-6 max-w-3xl leading-8 text-muted-foreground">
+                {book.description || "وصف الكتاب سيتحدث مباشرة عن الفائدة التي ستحصلين عليها في رحلتك اليومية."}
+              </p>
             </div>
 
-            <aside className="rounded-[2rem] border border-border bg-card p-6 shadow-xl">
-              <div className="rounded-[1.5rem] bg-primary p-6 text-primary-foreground">
-                <BookOpen className="h-7 w-7 text-accent" />
-                <p className="mt-8 text-3xl font-black">{book.title}</p>
+            <aside className="rounded-[2rem] border border-border bg-card p-5 shadow-xl">
+              <ProductCover title={book.title} imageUrl={book.coverImageUrl} kind="book" className="aspect-[4/5]" />
+              <div className="mt-5 rounded-2xl border border-border bg-background p-4">
+                <p className="text-sm text-muted-foreground">سعر الكتاب</p>
+                <p className="mt-1 text-4xl font-black text-primary latin">{book.price.toLocaleString("ar-EG")} ج.م</p>
               </div>
-              <div className="mt-6">
-                <p className="text-sm text-muted-foreground">السعر</p>
-                <p className="text-4xl font-black text-primary latin">{book.price.toLocaleString("ar-EG")} ج.م</p>
-              </div>
-              <Link href={`/checkout?type=book&id=${book.id}`} className="mt-6 block">
-                <Button className="h-12 w-full rounded-full bg-[var(--burgundy)] text-primary-foreground hover:bg-[var(--burgundy)]/90">
+              <Link href={`/checkout?type=book&id=${book.id}`} className="mt-5 block">
+                <Button className="h-12 w-full rounded-full bg-[var(--burgundy)] text-primary-foreground hover:bg-[var(--burgundy)]/90 premium-cta-pulse">
                   <CreditCard className="h-5 w-5" />
-                  شراء الكتاب الآن
+                  اشتري الكتاب الآن
                 </Button>
               </Link>
             </aside>
           </div>
         </section>
 
-        <section className="section-padding">
-          <div className="container-brand">
-            <div className="rounded-[2rem] border border-border bg-card p-8">
-              <p className="eyebrow">ماذا ستحصلين؟</p>
-              <h2 className="mt-4 text-3xl font-black text-foreground">كتاب رقمي ضمن حسابك بعد اعتماد الطلب</h2>
-              <p className="mt-4 leading-8 text-muted-foreground">
-                بعد اعتماد الدفع من الإدارة سيظهر الكتاب داخل حسابك مع زر تحميل حقيقي عند توفر رابط الملف.
+        <section className="pb-8">
+          <div className="container-brand grid gap-5 lg:grid-cols-3">
+            <article className="premium-card">
+              <h2 className="premium-heading-md">وعد هذا الكتاب</h2>
+              <p className="mt-3 leading-8 text-muted-foreground">
+                محتوى عربي دافئ يساعدك على تهدئة الضجيج الداخلي وتحويل الفهم إلى خطوات عملية قابلة للتطبيق.
               </p>
-              <div className="mt-6 flex items-center gap-2 text-muted-foreground">
-                <Sparkles className="h-5 w-5 text-accent" />
-                تجربة شراء ومتابعة موحدة من صفحة الحساب.
-              </div>
-            </div>
+            </article>
+            <article className="premium-card">
+              <h2 className="premium-heading-md">لمن هذا الكتاب؟</h2>
+              <p className="mt-3 leading-8 text-muted-foreground">
+                لمن تبحث عن نقطة بداية ناعمة وعميقة، وتفضّل مسارًا تدريجيًا واضحًا بدل النصائح المتفرقة.
+              </p>
+            </article>
+            <article className="premium-card">
+              <p className="inline-flex items-center gap-2 text-sm font-bold text-foreground">
+                <ShieldCheck className="h-4 w-4 text-accent" />
+                الوصول بعد الدفع
+              </p>
+              <p className="mt-3 leading-8 text-muted-foreground">
+                بعد تأكيد الدفع، يظهر الكتاب داخل حسابك مع وصول محمي مخصص لاستخدامك الشخصي فقط.
+              </p>
+              <p className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-primary">
+                <CheckCircle2 className="h-4 w-4" />
+                تفعيل واضح من صفحة الحساب
+              </p>
+            </article>
+          </div>
+
+          <div className="container-brand mt-5 space-y-5">
+            <PremiumCTA
+              eyebrow="خطوة هادئة تبدأ الآن"
+              title="ابدئي قراءة تغيّر إيقاع يومك"
+              description="هذا الكتاب مصمم ليكون رفيقك اليومي بخطوات عملية، ونبرة داعمة، ومساحة آمنة للفهم."
+              primaryLabel="شراء الكتاب"
+              primaryHref={`/checkout?type=book&id=${book.id}`}
+              secondaryLabel="العودة للكتب"
+              secondaryHref="/books"
+            />
+            <SupportNotice />
           </div>
         </section>
       </main>

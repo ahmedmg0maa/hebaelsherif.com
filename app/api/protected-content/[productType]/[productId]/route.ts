@@ -71,10 +71,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     contentKind: resolved.contentKind,
     previewable: resolved.previewable,
     openLabel: resolved.openLabel,
-    legalNoticePrimary:
-      "هذا المحتوى مخصص لاستخدامك الشخصي فقط. يُمنع تصويره أو تسجيله أو مشاركته أو إعادة نشره بأي شكل.",
-    legalNoticeSecondary:
-      "حفاظًا على حقوق الملكية، قد تظهر علامة مائية مرتبطة بحسابك أثناء عرض المحتوى.",
+    legalNoticePrimary: "هذا المحتوى للاستخدام الشخصي فقط.",
+    legalNoticeSecondary: "قد تظهر علامة مائية لحماية حقوق المحتوى.",
     trace: {
       userId: resolved.user.userId,
       email: resolved.user.email,
