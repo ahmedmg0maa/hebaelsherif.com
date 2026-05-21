@@ -1,66 +1,59 @@
 import Link from "next/link"
-import { ArrowRight, Compass, MessageCircleHeart } from "lucide-react"
+import { ArrowRight, BookOpen, Layers3, MessageCircleHeart } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { startHereSteps } from "@/lib/site-data"
+
+const paths = [
+  {
+    title: "أحتاج جلسة كوتشنج",
+    text: "جلسة فردية هادئة لفهم وضعك الحالي وبناء خطة عملية واضحة.",
+    href: "/booking?service=coaching",
+    icon: MessageCircleHeart,
+    cta: "احجزي جلستك",
+  },
+  {
+    title: "أريد كورسًا أبدأ به",
+    text: "مسارات تعلم رقمية تساعدك على التحول خطوة بخطوة بإيقاع مرن.",
+    href: "/courses",
+    icon: Layers3,
+    cta: "تصفحي الكورسات",
+  },
+  {
+    title: "أريد كتابًا يساعدني",
+    text: "كتب رقمية مختارة لتمنحك بداية عميقة وعملية في نفس الوقت.",
+    href: "/books",
+    icon: BookOpen,
+    cta: "تصفحي الكتب",
+  },
+]
 
 export function StartHereSection() {
   return (
     <section className="section-padding soft-gradient" dir="rtl">
-      <div className="container-brand rounded-[2.5rem] border border-border bg-card/90 p-7 shadow-lg md:p-10">
-        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-          <div>
-            <p className="eyebrow">ابدئي من هنا</p>
-            <h2 className="mt-4 text-4xl font-black leading-tight text-foreground sm:text-5xl">
-              لا تحتاجين خطة معقدة، فقط بداية واضحة اليوم.
-            </h2>
-            <p className="mt-5 text-lg leading-8 text-muted-foreground">
-              إذا كنتِ محتارة من أين تبدئين، فهذه الخطوات الثلاث تساعدكِ على اختيار المسار الأنسب بدون ضغط.
-            </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link href="/booking">
-                <Button className="rounded-full bg-[var(--burgundy)] text-primary-foreground hover:bg-[var(--burgundy)]/90">
-                  احجزي جلستك الخاصة
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/services">
-                <Button variant="outline" className="rounded-full bg-transparent">
-                  اختاري ما يناسبك
-                </Button>
-              </Link>
-            </div>
-          </div>
+      <div className="container-brand">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="eyebrow">ابدئي رحلتك</p>
+          <h2 className="mt-4 text-4xl font-black leading-tight text-foreground sm:text-5xl">اختاري المسار الذي يناسب احتياجك الآن</h2>
+          <p className="mx-auto mt-5 max-w-2xl leading-8 text-muted-foreground">
+            يمكنك البدء من أي نقطة، وسنحافظ على نفس الهدوء والوضوح في كل خطوة.
+          </p>
+        </div>
 
-          <div className="grid gap-4">
-            {startHereSteps.map((step, index) => (
-              <article key={step.title} className="rounded-[1.8rem] border border-border bg-background p-5">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex size-9 items-center justify-center rounded-full bg-primary text-sm font-black text-primary-foreground">
-                    {index + 1}
-                  </span>
-                  <h3 className="text-lg font-black text-foreground">{step.title}</h3>
-                </div>
-                <p className="mt-3 text-sm leading-7 text-muted-foreground">{step.text}</p>
-                <Link href={step.href} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-accent">
-                  ابدئي من هنا
+        <div className="mt-10 grid gap-5 lg:grid-cols-3">
+          {paths.map((path) => (
+            <article key={path.title} className="rounded-[1.9rem] border border-border bg-card p-6 shadow-sm">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <path.icon className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 text-2xl font-black text-foreground">{path.title}</h3>
+              <p className="mt-3 leading-8 text-muted-foreground">{path.text}</p>
+              <Link href={path.href} className="mt-6 inline-flex">
+                <Button className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                  {path.cta}
                   <ArrowRight className="h-4 w-4" />
-                </Link>
-              </article>
-            ))}
-            <div className="rounded-[1.8rem] border border-accent/30 bg-accent/10 p-5">
-              <p className="inline-flex items-center gap-2 text-sm font-black text-foreground">
-                <Compass className="h-4 w-4 text-accent" />
-                مساحة هادئة للاختيار
-              </p>
-              <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                AI يساعدكِ على اختيار البداية الأنسب عبر مسارات قصيرة وواضحة.
-              </p>
-              <span className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-accent">
-                <MessageCircleHeart className="h-4 w-4" />
-                متاح أسفل الصفحة
-              </span>
-            </div>
-          </div>
+                </Button>
+              </Link>
+            </article>
+          ))}
         </div>
       </div>
     </section>

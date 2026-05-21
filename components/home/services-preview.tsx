@@ -1,66 +1,65 @@
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, CalendarClock, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { services } from "@/lib/site-data"
+
+const sessionTypes = [
+  {
+    title: "جلسة كوتشنج 60 دقيقة",
+    price: "1200 ج.م",
+    note: "مناسبة لتشخيص واضح وخطوة عملية مباشرة.",
+  },
+  {
+    title: "جلسة كوتشنج 90 دقيقة",
+    price: "1500 ج.م",
+    note: "مناسبة للمناقشات الأعمق وخطة أكثر تفصيلًا.",
+  },
+]
 
 export function ServicesPreview() {
   return (
     <section className="section-padding bg-secondary/36" dir="rtl" id="services-preview">
       <div className="container-brand">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="eyebrow">الخدمات</p>
-          <h2 className="mt-4 text-4xl font-black leading-tight text-foreground sm:text-5xl">
-            اختاري المسار الأنسب لمرحلتك الحالية
-          </h2>
-          <p className="mt-6 text-lg leading-8 text-muted-foreground">
-            من جلسة فردية عميقة إلى برنامج متكامل، كل خدمة مصممة لتقودكِ من الفهم إلى التطبيق.
-          </p>
-        </div>
-
-        <div className="mt-14 grid gap-6 lg:grid-cols-4">
-          {services.map((service) => (
-            <article
-              key={service.id}
-              className={`hover-lift group relative overflow-hidden rounded-[2rem] border p-6 shadow-sm ${
-                service.featured
-                  ? "border-primary/40 bg-[color:rgba(47,97,115,0.08)] text-foreground"
-                  : "border-border bg-card"
-              }`}
-            >
-              <div className="absolute -left-10 -top-10 h-28 w-28 rounded-full bg-accent/10 blur-xl" />
-              <div
-                className={`relative mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl ${
-                  service.featured ? "bg-primary/16 text-primary" : "bg-primary/10 text-primary"
-                }`}
-              >
-                <service.icon className="h-7 w-7" />
-              </div>
-              <p className={`relative text-xs font-bold tracking-[0.2em] ${service.featured ? "text-primary" : "text-accent"}`}>
-                {service.kicker}
+        <div className="rounded-[2.3rem] border border-border bg-card p-7 shadow-sm md:p-10">
+          <div className="grid gap-8 lg:grid-cols-[1fr_0.95fr] lg:items-center">
+            <div>
+              <p className="eyebrow">جلسات الكوتشنج</p>
+              <h2 className="mt-4 text-4xl font-black leading-tight text-foreground sm:text-5xl">موعد هادئ ومهني يضعك على المسار الصحيح</h2>
+              <p className="mt-5 text-lg leading-8 text-muted-foreground">
+                الجلسات تتم بحجز مسبق، مع تحقق كامل من المواعيد وتأكيد واضح داخل حسابك.
               </p>
-              <h3 className="relative mt-3 text-2xl font-extrabold">{service.title}</h3>
-              <p className={`relative mt-4 min-h-28 leading-7 ${service.featured ? "text-foreground/85" : "text-muted-foreground"}`}>
-                {service.description}
-              </p>
-              <ul className="relative mt-5 space-y-2 text-sm">
-                {service.points.map((point) => (
-                  <li key={point} className="flex items-center gap-2">
-                    <span className={`h-1.5 w-1.5 rounded-full ${service.featured ? "bg-primary" : "bg-accent"}`} />
-                    {point}
+              <ul className="mt-6 space-y-3">
+                {[
+                  "لا يتم قبول مواعيد سابقة أو خارج أوقات العمل.",
+                  "المواعيد المتاحة تُظهر تلقائيًا حسب اليوم والمدة.",
+                  "حالة الحجز تبدأ قيد المراجعة حتى التأكيد.",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm text-foreground/85">
+                    <CheckCircle2 className="h-4 w-4 text-accent" />
+                    {item}
                   </li>
                 ))}
               </ul>
-              <Link href={service.href} className="relative mt-7 inline-flex w-full">
-                <Button
-                  variant={service.featured ? "default" : "outline"}
-                  className={`w-full rounded-full ${service.featured ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
-                >
-                  التفاصيل والحجز
+              <Link href="/booking" className="mt-7 inline-flex">
+                <Button className="rounded-full bg-[var(--burgundy)] text-primary-foreground hover:bg-[var(--burgundy)]/90">
+                  احجزي جلستك
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-            </article>
-          ))}
+            </div>
+
+            <div className="grid gap-4">
+              {sessionTypes.map((session) => (
+                <article key={session.title} className="rounded-[1.6rem] border border-border bg-background p-5">
+                  <p className="inline-flex items-center gap-2 text-sm font-bold text-foreground">
+                    <CalendarClock className="h-4 w-4 text-primary" />
+                    {session.title}
+                  </p>
+                  <p className="mt-3 text-3xl font-black text-primary latin">{session.price}</p>
+                  <p className="mt-2 text-sm leading-7 text-muted-foreground">{session.note}</p>
+                </article>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>

@@ -4,9 +4,12 @@ import { useEffect, useMemo, useState } from "react"
 import { onAuthStateChanged, type User } from "firebase/auth"
 import { CheckCircle2, Circle, ExternalLink, Loader2, PlayCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { getFirebaseClientAuth } from "@/lib/firebase/client"
+import { ContentProtectionNotice } from "@/components/premium/content-protection-notice"
+import { CourseStageCard } from "@/components/premium/course-stage-card"
+import { PremiumProgressBar } from "@/components/premium/premium-progress-bar"
+import { SupportNotice } from "@/components/premium/support-notice"
 
 type CourseLesson = {
   id: string
@@ -58,6 +61,10 @@ export function ProtectedCourseLearning({ courseId }: { courseId: string }) {
   const progress = data?.progress
   const completedSet = useMemo(() => new Set(progress?.completedLessonIds || []), [progress?.completedLessonIds])
   const activeLesson = useMemo(() => lessons.find((lesson) => lesson.id === activeLessonId) || lessons[0] || null, [activeLessonId, lessons])
+  const activeLessonIndex = useMemo(() => {
+    if (!activeLesson) return -1
+    return lessons.findIndex((lesson) => lesson.id === activeLesson.id)
+  }, [activeLesson, lessons])
 
   useEffect(() => {
     const auth = getFirebaseClientAuth()
@@ -192,13 +199,18 @@ export function ProtectedCourseLearning({ courseId }: { courseId: string }) {
       <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
         <p className="text-sm text-muted-foreground">تقدمك في الكورس</p>
         <h2 className="mt-2 text-2xl font-black text-foreground">{data?.course?.title || "الكورس"}</h2>
-        <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-          <span>
-            {progress?.completedLessonsCount || 0} / {progress?.totalLessons || 0} دروس مكتملة
-          </span>
-          <span className="font-bold text-foreground">{progress?.progressPercent || 0}%</span>
+        <div className="mt-4">
+          <PremiumProgressBar
+            value={progress?.progressPercent || 0}
+            label="تقدم الرحلة"
+            subtitle={`${progress?.completedLessonsCount || 0} من ${progress?.totalLessons || lessons.length || 0} مراحل مكتملة`}
+          />
         </div>
-        <Progress value={progress?.progressPercent || 0} className="mt-3 h-2 rounded-full" />
+        {data?.trackingMode === "opened_course" ? (
+          <p className="mt-3 text-xs leading-6 text-muted-foreground">
+            لا توجد مراحل مفصلة لهذا الكورس بعد. يمكنك متابعة الكورس الآن وسيتم حفظ آخر دخول لك تلقائيًا.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
@@ -239,9 +251,16 @@ export function ProtectedCourseLearning({ courseId }: { courseId: string }) {
           {activeLesson ? (
             <>
               <p className="text-sm text-muted-foreground">الدرس الحالي</p>
-              <h3 className="mt-2 text-2xl font-black text-foreground">{activeLesson.title}</h3>
-              {activeLesson.description ? <p className="mt-3 leading-8 text-muted-foreground">{activeLesson.description}</p> : null}
-              <p className="mt-3 text-sm text-muted-foreground">المدة: {activeLesson.duration || "مرنة"}</p>
+              <div className="mt-3">
+                <CourseStageCard
+                  stage={`المرحلة ${activeLessonIndex >= 0 ? activeLessonIndex + 1 : 1}`}
+                  title={activeLesson.title}
+                  description={activeLesson.description || "هذه المرحلة مصممة لتقودك خطوة عملية واضحة في رحلتك."}
+                  completed={completedSet.has(activeLesson.id)}
+                  active
+                />
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">المدة: {activeLesson.duration || "مرنة"}</p>
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button
@@ -269,12 +288,16 @@ export function ProtectedCourseLearning({ courseId }: { courseId: string }) {
                   </Button>
                 ) : null}
               </div>
+              <div className="mt-5">
+                <ContentProtectionNotice />
+              </div>
             </>
           ) : (
             <p className="text-muted-foreground">لا توجد دروس متاحة لهذا الكورس حاليًا.</p>
           )}
         </div>
       </div>
+      <SupportNotice />
     </section>
   )
 }

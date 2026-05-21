@@ -5,6 +5,8 @@ import { onAuthStateChanged, type User } from "firebase/auth"
 import { AlertTriangle, ExternalLink, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getFirebaseClientAuth } from "@/lib/firebase/client"
+import { ContentProtectionNotice } from "@/components/premium/content-protection-notice"
+import { SupportNotice } from "@/components/premium/support-notice"
 
 type ProtectedProductType = "book" | "course"
 type ContentKind = "video" | "pdf" | "file"
@@ -177,9 +179,8 @@ export function ProtectedContentViewer({
           <div className="rounded-2xl border border-border bg-background p-4">
             <p className="text-sm text-muted-foreground">المحتوى المحمي</p>
             <h2 className="mt-1 text-xl font-black text-foreground">{productTitle}</h2>
-            <div className="mt-3 rounded-xl border border-border/80 bg-muted/40 px-4 py-3">
-              <p className="text-sm leading-7 text-foreground">{noticePrimary}</p>
-              <p className="mt-1 text-xs leading-6 text-muted-foreground">{noticeSecondary}</p>
+            <div className="mt-3">
+              <ContentProtectionNotice primary={noticePrimary} secondary={noticeSecondary} />
             </div>
             <p className="mt-3 inline-flex rounded-full border border-border px-3 py-1 text-xs font-bold text-foreground">
               العلامة المائية: {watermarkText}
@@ -220,6 +221,10 @@ export function ProtectedContentViewer({
               </div>
             </div>
           ) : null}
+          <SupportNotice
+            title="الدعم متاح إذا واجهت أي صعوبة"
+            description="إذا تم تأكيد الوصول ولم يعمل العرض بالشكل المتوقع، تواصلي معنا وسنراجع التفعيل مباشرة."
+          />
         </div>
       )}
     </section>

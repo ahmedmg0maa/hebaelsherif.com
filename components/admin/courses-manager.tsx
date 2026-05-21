@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { ProductCover } from "@/components/product-cover"
 import { toast } from "@/hooks/use-toast"
 
 type CourseRecord = {
@@ -347,6 +348,9 @@ export function CoursesManager() {
               placeholder="https://drive.google.com/file/d/FILE_ID/view"
               className="w-full"
             />
+            <div className="max-w-[220px]">
+              <ProductCover title={form.title || "غلاف الكورس"} imageUrl={form.coverImageUrl} kind="course" className="aspect-[4/3]" />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -409,6 +413,9 @@ export function CoursesManager() {
             <article key={item.id} className="rounded-2xl border border-border bg-background p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
+                  <div className="mb-3 max-w-[160px]">
+                    <ProductCover title={item.title} imageUrl={item.coverImageUrl} kind="course" className="aspect-[4/3]" />
+                  </div>
                   <p className="font-bold text-foreground">{item.title}</p>
                   <p className="text-xs text-muted-foreground break-words">
                     {item.slug} · {toNumber(item.price).toLocaleString("ar-EG")} ج.م · {statusLabel(item.status)}

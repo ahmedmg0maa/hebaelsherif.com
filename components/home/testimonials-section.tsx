@@ -1,65 +1,50 @@
-"use client"
+import { CheckCircle2, ShieldCheck, Sparkles, Wallet } from "lucide-react"
 
-import { useState } from "react"
-import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { testimonials } from "@/lib/site-data"
+const trustStatements = [
+  {
+    icon: ShieldCheck,
+    title: "خصوصية واحترام",
+    text: "بياناتك وحجوزاتك وطلباتك تُدار بشكل آمن داخل حسابك الشخصي.",
+  },
+  {
+    icon: Wallet,
+    title: "دفع واضح",
+    text: "يتم توضيح حالة الطلب والتفعيل بخطوات مباشرة دون وعود غير حقيقية.",
+  },
+  {
+    icon: CheckCircle2,
+    title: "وصول منظم",
+    text: "المحتوى المدفوع يظهر بعد التأكيد داخل حسابك مع تجربة استخدام واضحة.",
+  },
+  {
+    icon: Sparkles,
+    title: "تجربة عربية راقية",
+    text: "تصميم هادئ، لغة دافئة، ومسار سهل على الجوال والكمبيوتر.",
+  },
+]
 
 export function TestimonialsSection() {
-  const [index, setIndex] = useState(0)
-  const current = testimonials[index]
-
   return (
-    <section className="section-padding bg-secondary text-foreground" dir="rtl">
+    <section className="section-padding bg-secondary/35 text-foreground" dir="rtl">
       <div className="container-brand">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.35em] text-accent">تجارب حقيقية</p>
-          <h2 className="mt-4 text-4xl font-black leading-tight sm:text-5xl">كلمات من رحلات بدأت بالفعل</h2>
+          <p className="eyebrow">الثقة</p>
+          <h2 className="mt-4 text-4xl font-black leading-tight sm:text-5xl">كل خطوة في المنصة مصممة لتمنحك راحة ووضوحًا</h2>
+          <p className="mx-auto mt-5 max-w-2xl leading-8 text-muted-foreground">
+            هذا القسم مخصص لرسائل الثقة الرسمية حتى إضافة تجارب موثقة من عميلات حقيقيات لاحقًا.
+          </p>
         </div>
 
-        <div className="relative mx-auto mt-12 max-w-4xl rounded-[2.5rem] border border-border bg-card/88 p-8 text-center shadow-xl md:p-12">
-          <Quote className="mx-auto h-12 w-12 text-accent" />
-          <p className="mt-8 text-balance text-xl font-semibold leading-9 md:text-2xl">
-            &ldquo;{current.text}&rdquo;
-          </p>
-          <div className="mt-7 flex justify-center gap-1 text-accent">
-            {Array.from({ length: 5 }).map((_, star) => (
-              <Star key={star} className="h-5 w-5 fill-current" />
-            ))}
-          </div>
-          <div className="mt-6">
-            <p className="text-xl font-bold">{current.name}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{current.role}</p>
-          </div>
-          <div className="mt-8 flex items-center justify-center gap-3">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="rounded-full"
-              onClick={() => setIndex((index - 1 + testimonials.length) % testimonials.length)}
-              type="button"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-            {testimonials.map((_, dot) => (
-              <button
-                key={dot}
-                onClick={() => setIndex(dot)}
-                className={`h-2.5 rounded-full transition-all ${dot === index ? "w-8 bg-accent" : "w-2.5 bg-border"}`}
-                aria-label={`تجربة ${dot + 1}`}
-                type="button"
-              />
-            ))}
-            <Button
-              variant="secondary"
-              size="icon"
-              className="rounded-full"
-              onClick={() => setIndex((index + 1) % testimonials.length)}
-              type="button"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-          </div>
+        <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {trustStatements.map((item) => (
+            <article key={item.title} className="rounded-[1.8rem] border border-border bg-card p-6 shadow-sm">
+              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <item.icon className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-xl font-black text-foreground">{item.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-muted-foreground">{item.text}</p>
+            </article>
+          ))}
         </div>
       </div>
     </section>
