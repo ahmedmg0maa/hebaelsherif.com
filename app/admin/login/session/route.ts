@@ -1,17 +1,24 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
-import { ADMIN_SESSION_COOKIE, hasConfiguredAdminPassword, isValidAdminSessionToken } from "@/lib/admin-auth"
+import {
+  ADMIN_COOKIE_NAME,
+  getAdminSessionConfig,
+  getAdminSessionSetupErrors,
+  verifyAdminSession,
+} from "@/lib/admin-session"
 
 export const runtime = "nodejs"
 
 export async function GET() {
   try {
-    const token = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value
-    const configured = hasConfiguredAdminPassword()
-    const authenticated = isValidAdminSessionToken(token)
-    const reason = authenticated ? "ok" : token ? "invalid_session" : "missing_cookie"
-    const errors = configured ? [] : ["ADMIN_PASSWORD is missing on Vercel."]
-    const message = configured ? undefined : "ADMIN_PASSWORD is not configured in the production environment."
+    const token = (await cookies()).get(ADMIN_COOKIE_NAME)?.value
+    const config = getAdminSessionConfig()
+    const configured = config.adminPasswordConfigured && config.sessionSecretConfigured
+    const sessionState = verifyAdminSession(token)
+    const authenticated = sessionState.ok
+    const reason = sessionState.reason
+    const errors = configured ? [] : getAdminSessionSetupErrors()
+    const message = configured ? undefined : errors[0]
 
     const response = NextResponse.json(
       {

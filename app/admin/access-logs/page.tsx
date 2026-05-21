@@ -1,5 +1,7 @@
 import { AlertTriangle, Eye } from "lucide-react"
-import { requireAdminPage } from "@/lib/admin-auth"
+import { redirect } from "next/navigation"
+import { AdminShell } from "@/components/admin/admin-shell"
+import { requireAdmin } from "@/lib/admin-session"
 import { isFirebaseConfigured, listDocuments } from "@/lib/firebase/admin"
 
 function parseDate(value: unknown) {
@@ -20,16 +22,21 @@ function formatDateTime(value: unknown) {
 }
 
 export default async function AdminAccessLogsPage() {
-  await requireAdminPage({ debugLabel: "/admin/access-logs" })
+  const admin = await requireAdmin()
+  if (!admin.ok) {
+    redirect("/admin/login")
+  }
 
   if (!isFirebaseConfigured()) {
     return (
-      <div className="space-y-6" dir="rtl">
+      <AdminShell>
+        <div className="space-y-6" dir="rtl">
         <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
           <h1 className="text-3xl font-black text-foreground">سجل الوصول للمحتوى المحمي</h1>
           <p className="mt-2 text-destructive">تعذر تحميل السجل: إعدادات Firebase Admin غير مكتملة.</p>
         </div>
-      </div>
+        </div>
+      </AdminShell>
     )
   }
 
@@ -42,7 +49,8 @@ export default async function AdminAccessLogsPage() {
   const suspiciousCount = logs.filter((item) => Boolean(item.suspicious)).length
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <AdminShell>
+      <div className="space-y-6" dir="rtl">
       <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
         <h1 className="text-3xl font-black text-foreground">سجل الوصول للمحتوى المحمي</h1>
         <p className="mt-2 text-muted-foreground">مراجعة محاولات الوصول، الأجهزة النشطة، والإشارات المشبوهة.</p>
@@ -147,6 +155,7 @@ export default async function AdminAccessLogsPage() {
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </AdminShell>
   )
 }

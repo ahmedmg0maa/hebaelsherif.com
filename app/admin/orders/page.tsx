@@ -1,7 +1,9 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
+import { AdminShell } from "@/components/admin/admin-shell"
 import { OrderStatusSelect } from "@/components/admin/order-status-select"
-import { requireAdminPage } from "@/lib/admin-auth"
 import { isFirebaseConfigured, listDocuments } from "@/lib/firebase/admin"
+import { requireAdmin } from "@/lib/admin-session"
 
 type PageProps = {
   searchParams: Promise<{ status?: string; q?: string }>
@@ -25,19 +27,24 @@ function mapStatus(status: string) {
 }
 
 export default async function AdminOrdersPage({ searchParams }: PageProps) {
-  await requireAdminPage({ debugLabel: "/admin/orders" })
+  const admin = await requireAdmin()
+  if (!admin.ok) {
+    redirect("/admin/login")
+  }
 
   const { status = "all", q = "" } = await searchParams
   const search = q.trim().toLowerCase()
 
   if (!isFirebaseConfigured()) {
     return (
-      <div className="space-y-6" dir="rtl">
+      <AdminShell>
+        <div className="space-y-6" dir="rtl">
         <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
           <h1 className="text-3xl font-black text-foreground">الطلبات</h1>
           <p className="mt-2 text-destructive">تعذر تحميل الطلبات: إعدادات Firebase Admin غير مكتملة.</p>
         </div>
-      </div>
+        </div>
+      </AdminShell>
     )
   }
 
@@ -59,7 +66,8 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
   })
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <AdminShell>
+      <div className="space-y-6" dir="rtl">
       <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
         <h1 className="text-3xl font-black text-foreground">الطلبات</h1>
         <p className="mt-2 text-muted-foreground">تحديث حالة الطلبات وربط التفعيل في حساب المستخدم.</p>
@@ -189,6 +197,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </AdminShell>
   )
 }

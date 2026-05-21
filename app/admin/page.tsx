@@ -1,7 +1,9 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { BookOpen, Calendar, Eye, Layers3, MessageSquare, ShoppingCart, TrendingUp } from "lucide-react"
-import { requireAdminPage } from "@/lib/admin-auth"
+import { AdminShell } from "@/components/admin/admin-shell"
 import { getFirebaseSetupErrorMessage, isFirebaseConfigured, listDocuments } from "@/lib/firebase/admin"
+import { requireAdmin } from "@/lib/admin-session"
 import { Button } from "@/components/ui/button"
 
 export const dynamic = "force-dynamic"
@@ -38,18 +40,23 @@ function formatDateTimeAr(value: unknown) {
 }
 
 export default async function AdminDashboardPage() {
-  await requireAdminPage({ debugLabel: "/admin" })
+  const admin = await requireAdmin()
+  if (!admin.ok) {
+    redirect("/admin/login")
+  }
 
   if (!isFirebaseConfigured()) {
     return (
-      <div className="space-y-6" dir="rtl">
+      <AdminShell>
+        <div className="space-y-6" dir="rtl">
           <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
             <h1 className="text-3xl font-black text-foreground">لوحة إدارة المنصة</h1>
             <p className="mt-3 text-destructive">
               {getFirebaseSetupErrorMessage() || "تعذر تحميل لوحة الإدارة بسبب إعدادات Firebase غير المكتملة."}
             </p>
           </section>
-      </div>
+        </div>
+      </AdminShell>
     )
   }
 
@@ -80,7 +87,8 @@ export default async function AdminDashboardPage() {
   ]
 
   return (
-    <div className="space-y-8" dir="rtl">
+    <AdminShell>
+      <div className="space-y-8" dir="rtl">
       <div className="rounded-[2rem] bg-primary p-6 text-primary-foreground shadow-xl">
         <h1 className="text-3xl font-black">لوحة إدارة المنصة</h1>
         <p className="mt-2 text-primary-foreground/80">متابعة فورية للحجوزات والطلبات والمنتجات والنشاط اليومي.</p>
@@ -179,6 +187,7 @@ export default async function AdminDashboardPage() {
           </div>
         </section>
       </div>
-    </div>
+      </div>
+    </AdminShell>
   )
 }

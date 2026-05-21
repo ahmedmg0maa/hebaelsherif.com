@@ -1,7 +1,9 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
+import { AdminShell } from "@/components/admin/admin-shell"
 import { BookingStatusSelect } from "@/components/admin/booking-status-select"
-import { requireAdminPage } from "@/lib/admin-auth"
 import { isFirebaseConfigured, listDocuments } from "@/lib/firebase/admin"
+import { requireAdmin } from "@/lib/admin-session"
 
 type PageProps = {
   searchParams: Promise<{ from?: string; to?: string; status?: string; q?: string }>
@@ -58,19 +60,24 @@ function mapStatus(status: string) {
 }
 
 export default async function AdminBookingsPage({ searchParams }: PageProps) {
-  await requireAdminPage({ debugLabel: "/admin/bookings" })
+  const admin = await requireAdmin()
+  if (!admin.ok) {
+    redirect("/admin/login")
+  }
 
   const { from = "", to = "", status = "all", q = "" } = await searchParams
   const search = q.trim().toLowerCase()
 
   if (!isFirebaseConfigured()) {
     return (
-      <div className="space-y-6" dir="rtl">
+      <AdminShell>
+        <div className="space-y-6" dir="rtl">
         <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
           <h1 className="text-3xl font-black text-foreground">الحجوزات</h1>
           <p className="mt-2 text-destructive">تعذر تحميل الحجوزات: إعدادات Firebase Admin غير مكتملة.</p>
         </div>
-      </div>
+        </div>
+      </AdminShell>
     )
   }
 
@@ -99,7 +106,8 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
   })
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <AdminShell>
+      <div className="space-y-6" dir="rtl">
       <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
         <h1 className="text-3xl font-black text-foreground">الحجوزات</h1>
         <p className="mt-2 text-muted-foreground">إدارة طلبات الحجز وتحديث الحالة مع بحث سريع وفلاتر التاريخ.</p>
@@ -238,6 +246,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps) {
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </AdminShell>
   )
 }

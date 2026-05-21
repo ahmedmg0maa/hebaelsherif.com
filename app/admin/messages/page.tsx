@@ -1,4 +1,6 @@
-import { requireAdminPage } from "@/lib/admin-auth"
+import { redirect } from "next/navigation"
+import { AdminShell } from "@/components/admin/admin-shell"
+import { requireAdmin } from "@/lib/admin-session"
 import { getFirebaseSetupErrorMessage, isFirebaseConfigured, listDocuments } from "@/lib/firebase/admin"
 
 function parseDate(value: unknown) {
@@ -13,18 +15,23 @@ function formatDateTime(value: unknown) {
 }
 
 export default async function AdminMessagesPage() {
-  await requireAdminPage({ debugLabel: "/admin/messages" })
+  const admin = await requireAdmin()
+  if (!admin.ok) {
+    redirect("/admin/login")
+  }
 
   if (!isFirebaseConfigured()) {
     return (
-      <div className="space-y-6" dir="rtl">
+      <AdminShell>
+        <div className="space-y-6" dir="rtl">
         <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
           <h1 className="text-3xl font-black text-foreground">الرسائل</h1>
           <p className="mt-2 text-destructive">
             {getFirebaseSetupErrorMessage() || "تعذر تحميل الرسائل بسبب إعدادات Firebase غير المكتملة."}
           </p>
         </div>
-      </div>
+        </div>
+      </AdminShell>
     )
   }
 
@@ -35,7 +42,8 @@ export default async function AdminMessagesPage() {
   })
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <AdminShell>
+      <div className="space-y-6" dir="rtl">
       <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
         <h1 className="text-3xl font-black text-foreground">الرسائل</h1>
         <p className="mt-2 text-muted-foreground">متابعة رسائل العملاء الواردة من صفحة التواصل.</p>
@@ -62,6 +70,7 @@ export default async function AdminMessagesPage() {
           ))
         )}
       </div>
-    </div>
+      </div>
+    </AdminShell>
   )
 }

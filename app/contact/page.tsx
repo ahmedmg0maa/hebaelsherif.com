@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { brand } from "@/lib/site-data"
 
+const supportWhatsapp = String(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "").replace(/[^\d]/g, "")
+const supportWhatsappLink = supportWhatsapp ? `https://wa.me/${supportWhatsapp}` : "/contact"
+
 export default function ContactPage() {
   const [sent, setSent] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -77,7 +80,7 @@ export default function ContactPage() {
                 </div>
               ))}
               <a
-                href="https://wa.me/201000000000"
+                href={supportWhatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-[2rem] bg-primary p-6 text-primary-foreground shadow-xl transition hover:-translate-y-1"

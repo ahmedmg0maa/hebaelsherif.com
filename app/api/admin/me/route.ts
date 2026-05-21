@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
-import { ADMIN_SESSION_COOKIE, hasConfiguredAdminPassword, isValidAdminSessionToken } from "@/lib/admin-auth"
+import { ADMIN_COOKIE_NAME, getAdminSessionConfig, getAdminSessionSetupErrors, verifyAdminSession } from "@/lib/admin-session"
 
 export const runtime = "nodejs"
 
@@ -11,10 +11,12 @@ function debugMeLog(payload: { cookieExists: boolean; verified: boolean; reason:
 
 export async function GET() {
   try {
-    const token = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value
-    const configured = hasConfiguredAdminPassword()
-    const authenticated = isValidAdminSessionToken(token)
-    const reason = authenticated ? "ok" : token ? "invalid_session" : "missing_cookie"
+    const token = (await cookies()).get(ADMIN_COOKIE_NAME)?.value
+    const config = getAdminSessionConfig()
+    const configured = config.adminPasswordConfigured && config.sessionSecretConfigured
+    const state = verifyAdminSession(token)
+    const authenticated = state.ok
+    const reason = state.reason
     debugMeLog({
       cookieExists: Boolean(token),
       verified: authenticated,
@@ -31,13 +33,13 @@ export async function GET() {
     } = {
       authenticated,
       cookieExists: Boolean(token),
-      cookieName: ADMIN_SESSION_COOKIE,
+      cookieName: ADMIN_COOKIE_NAME,
       configured,
     }
 
     if (!authenticated) {
       payload.reason = reason
-      payload.errors = configured ? [] : ["ADMIN_PASSWORD is missing on Vercel."]
+      payload.errors = configured ? [] : getAdminSessionSetupErrors()
     }
 
     return NextResponse.json(payload, {
@@ -50,7 +52,7 @@ export async function GET() {
       {
         authenticated: false,
         cookieExists: false,
-        cookieName: ADMIN_SESSION_COOKIE,
+        cookieName: ADMIN_COOKIE_NAME,
         configured: false,
         reason: "unknown_error",
         errors: [error instanceof Error ? error.message : "Unknown /api/admin/me failure."],
