@@ -1,28 +1,25 @@
+import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
-import { clearAdminSessionCookie, requireAdmin, shouldClearAdminSessionCookie } from "@/lib/admin-session"
-import { validateAdminEnv } from "@/lib/env-validation"
+import { ADMIN_SESSION_COOKIE, hasConfiguredAdminPassword, isValidAdminSessionToken } from "@/lib/admin-auth"
 
 export const runtime = "nodejs"
 
 export async function GET() {
   try {
-    const admin = await requireAdmin()
-    const env = validateAdminEnv()
-    const configured = env.session.adminPasswordConfigured && env.session.sessionSecretConfigured
-    const message = !configured || env.errors.length > 0 ? env.errors[0] || "Admin environment is not configured." : undefined
+    const token = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value
+    const configured = hasConfiguredAdminPassword()
+    const authenticated = isValidAdminSessionToken(token)
+    const reason = authenticated ? "ok" : token ? "invalid_session" : "missing_cookie"
+    const errors = configured ? [] : ["ADMIN_PASSWORD is missing on Vercel."]
+    const message = configured ? undefined : "ADMIN_PASSWORD is not configured in the production environment."
 
     const response = NextResponse.json(
       {
         ok: true,
         configured,
-        authenticated: admin.ok,
-        reason: admin.reason,
-        env: {
-          session: env.session,
-          firebaseServiceAccount: env.firebaseServiceAccount,
-          firebasePublic: env.firebasePublic,
-        },
-        errors: env.errors,
+        authenticated,
+        reason,
+        errors,
         message,
       },
       {
@@ -31,18 +28,15 @@ export async function GET() {
         },
       },
     )
-    if (!admin.ok && shouldClearAdminSessionCookie(admin.reason)) {
-      clearAdminSessionCookie(response)
-    }
     return response
   } catch (error) {
-    const response = NextResponse.json(
+    return NextResponse.json(
       {
         ok: false,
         configured: false,
         authenticated: false,
         reason: "unknown_error",
-        errors: ["تعذر التحقق من إعدادات الجلسة. راجعي سجلات الخادم على Vercel."],
+        errors: ["Session check failed on the server."],
         message: error instanceof Error ? error.message : "Unknown session check error.",
       },
       {
@@ -52,7 +46,5 @@ export async function GET() {
         },
       },
     )
-    clearAdminSessionCookie(response)
-    return response
   }
 }
