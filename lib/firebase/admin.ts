@@ -40,6 +40,7 @@ export const FIREBASE_INVALID_CREDENTIALS_MESSAGE =
 let cachedDb: Firestore | null = null
 let cachedApp: App | null = null
 let cachedServiceAccount: Parameters<typeof cert>[0] | null | undefined
+let cachedInitErrorMessage = ""
 
 function getServiceAccount() {
   if (cachedServiceAccount !== undefined) return cachedServiceAccount
@@ -96,14 +97,55 @@ export function getFirebaseSetupErrorMessage() {
   return null
 }
 
+export function getFirebaseAdminInitializationStatus() {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
+  if (!raw) {
+    return {
+      configured: false,
+      initialized: false,
+      message: "FIREBASE_SERVICE_ACCOUNT_JSON missing.",
+    }
+  }
+
+  if (!getServiceAccount()) {
+    return {
+      configured: false,
+      initialized: false,
+      message: "FIREBASE_SERVICE_ACCOUNT_JSON is invalid or missing required fields.",
+    }
+  }
+
+  const app = getAdminApp()
+  if (!app) {
+    return {
+      configured: true,
+      initialized: false,
+      message: cachedInitErrorMessage || "Firebase Admin init failed.",
+    }
+  }
+
+  return {
+    configured: true,
+    initialized: true,
+    message: "Firebase Admin initialized.",
+  }
+}
+
 function getAdminApp() {
   if (cachedApp) return cachedApp
 
   const serviceAccount = getServiceAccount()
   if (!serviceAccount) return null
 
-  cachedApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount) })
-  return cachedApp
+  try {
+    cachedApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount) })
+    cachedInitErrorMessage = ""
+    return cachedApp
+  } catch (error) {
+    cachedInitErrorMessage = error instanceof Error ? error.message : "Unknown Firebase Admin initialization error."
+    console.error("Failed to initialize Firebase Admin app:", error)
+    return null
+  }
 }
 
 function getDb() {
@@ -352,6 +394,61 @@ export async function listBookingsForDate(dateKey: string) {
       }
     })
     .filter((item) => item.startMinutes !== null)
+}
+
+export async function checkFirestoreReachable() {
+  const db = getDb()
+  if (!db) {
+    return {
+      ok: false,
+      message: getFirebaseSetupErrorMessage() || "Firebase Admin is not initialized.",
+    }
+  }
+
+  try {
+    await db.collection("_diagnostics_ping").limit(1).get()
+    return { ok: true, message: "Firestore query succeeded." }
+  } catch (error) {
+    return {
+      ok: false,
+      message: `Firestore query failed: ${error instanceof Error ? error.message : "Unknown error."}`,
+    }
+  }
+}
+
+export async function getCollectionCount(collectionName: string) {
+  const db = getDb()
+  if (!db) {
+    return {
+      ok: false,
+      count: 0,
+      message: getFirebaseSetupErrorMessage() || "Firebase Admin is not initialized.",
+    }
+  }
+
+  try {
+    const aggregated = await db.collection(collectionName).count().get()
+    return {
+      ok: true,
+      count: Number(aggregated.data().count || 0),
+      message: "Count query succeeded.",
+    }
+  } catch {
+    try {
+      const snapshot = await db.collection(collectionName).get()
+      return {
+        ok: true,
+        count: snapshot.size,
+        message: "Count query fallback succeeded.",
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        count: 0,
+        message: `Firestore query failed for ${collectionName}: ${error instanceof Error ? error.message : "Unknown error."}`,
+      }
+    }
+  }
 }
 
 export { FieldValue }

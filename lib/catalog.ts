@@ -1,4 +1,5 @@
 import { getDocument, listDocuments, type AdminRecord } from "@/lib/firebase/admin"
+import { getProductCoverImage } from "@/lib/images"
 
 export type ProductStatus = "active" | "draft" | "hidden"
 
@@ -44,40 +45,8 @@ function asNumber(value: unknown) {
 function asStatus(value: unknown): ProductStatus {
   const text = asText(value).toLowerCase()
   if (text === "draft" || text === "hidden") return text
+  if (text === "published" || text === "active") return "active"
   return "active"
-}
-
-function normalizeForPlaceholderCheck(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ")
-}
-
-function isPlaceholderContent(product: {
-  id: string
-  slug: string
-  title: string
-  shortDescription: string
-  description: string
-}) {
-  const values = [
-    normalizeForPlaceholderCheck(product.id),
-    normalizeForPlaceholderCheck(product.slug),
-    normalizeForPlaceholderCheck(product.title),
-    normalizeForPlaceholderCheck(product.shortDescription),
-    normalizeForPlaceholderCheck(product.description),
-  ]
-
-  const exactPlaceholderTokens = new Set(["tt", "test", "testa", "test/testa", "testa/test"])
-  if (values.some((value) => exactPlaceholderTokens.has(value))) return true
-
-  const title = normalizeForPlaceholderCheck(product.title)
-  const shortDescription = normalizeForPlaceholderCheck(product.shortDescription)
-  const description = normalizeForPlaceholderCheck(product.description)
-
-  if (title === "tt" || title === "test" || title.startsWith("test ")) return true
-  if (shortDescription === "test" || shortDescription === "testa") return true
-  if (description === "test" || description === "testa") return true
-
-  return false
 }
 
 function mapCourseRecord(record: AdminRecord): CourseProduct | null {
@@ -93,11 +62,11 @@ function mapCourseRecord(record: AdminRecord): CourseProduct | null {
     description: asText(record.description),
     shortDescription: asText(record.shortDescription),
     price: asNumber(record.price),
-    coverImageUrl: asText(record.coverImageUrl),
+    coverImageUrl: getProductCoverImage(record),
     status: asStatus(record.status),
     lessonsCount: asNumber(record.lessonsCount),
     duration: asText(record.duration),
-    accessUrl: asText(record.accessUrl),
+    accessUrl: asText(record.accessUrl || record.fileUrl),
     createdAt: asText(record.createdAt),
     updatedAt: asText(record.updatedAt),
   }
@@ -116,8 +85,8 @@ function mapBookRecord(record: AdminRecord): BookProduct | null {
     description: asText(record.description),
     shortDescription: asText(record.shortDescription),
     price: asNumber(record.price),
-    coverImageUrl: asText(record.coverImageUrl),
-    fileUrl: asText(record.fileUrl),
+    coverImageUrl: getProductCoverImage(record),
+    fileUrl: asText(record.fileUrl || record.accessUrl),
     status: asStatus(record.status),
     createdAt: asText(record.createdAt),
     updatedAt: asText(record.updatedAt),
@@ -131,7 +100,7 @@ export async function listCatalogCourses(options?: { onlyActive?: boolean }) {
     limit: 1000,
   })
   const courses = records.map(mapCourseRecord).filter(Boolean) as CourseProduct[]
-  if (options?.onlyActive) return courses.filter((item) => item.status === "active" && !isPlaceholderContent(item))
+  if (options?.onlyActive) return courses.filter((item) => item.status === "active")
   return courses
 }
 
@@ -142,7 +111,7 @@ export async function listCatalogBooks(options?: { onlyActive?: boolean }) {
     limit: 1000,
   })
   const books = records.map(mapBookRecord).filter(Boolean) as BookProduct[]
-  if (options?.onlyActive) return books.filter((item) => item.status === "active" && !isPlaceholderContent(item))
+  if (options?.onlyActive) return books.filter((item) => item.status === "active")
   return books
 }
 
@@ -173,13 +142,11 @@ async function getBookFromFirestore(slugOrId: string) {
 export async function getCatalogCourseBySlug(slugOrId: string) {
   const course = await getCourseFromFirestore(slugOrId)
   if (!course || course.status !== "active") return null
-  if (isPlaceholderContent(course)) return null
   return course
 }
 
 export async function getCatalogBookBySlug(slugOrId: string) {
   const book = await getBookFromFirestore(slugOrId)
   if (!book || book.status !== "active") return null
-  if (isPlaceholderContent(book)) return null
   return book
 }
