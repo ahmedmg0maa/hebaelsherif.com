@@ -19,7 +19,7 @@ export const brand = {
   promise: "رحلة وعي تعيدك إلى ذاتك",
   shortBio:
     "لايف كوتش معتمدة، كاتبة ومدربة وعي بالذات. ترافقك في رحلة هادئة لفهم النفس، وفك الأنماط المتكررة، واتخاذ قرارات أكثر اتزانًا.",
-  whatsapp: "+201000000000",
+  whatsapp: String(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "").trim() || "متاح عبر نموذج التواصل",
   email: "hello@hebaelsharif.com",
   location: "القاهرة، مصر · جلسات أونلاين حول العالم",
 }

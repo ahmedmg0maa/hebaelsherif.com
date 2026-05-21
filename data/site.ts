@@ -6,10 +6,10 @@ export const brand = {
   tagline: "مساحة هادئة للوعي",
   shortTagline: "رحلة وعي تعيدكِ إلى ذاتك",
   email: "hello@hebaelsharif.com",
-  phone: "+20 100 000 0000",
-  whatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP
-    ? `https://wa.me/${String(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP).replace(/[^\d]/g, "")}`
-    : "https://wa.me/201000000000",
+  phone: process.env.NEXT_PUBLIC_SUPPORT_PHONE || "",
+  whatsapp: String(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "").replace(/[^\d]/g, "")
+    ? `https://wa.me/${String(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "").replace(/[^\d]/g, "")}`
+    : "/contact",
   location: "القاهرة، مصر · جلسات أونلاين حول العالم",
   logo: "/images/heba-logo.webp",
   banner: "/images/heba-banner.jpeg",
