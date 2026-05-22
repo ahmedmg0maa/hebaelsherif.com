@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: PageProps) {
   }
 }
 
-function buildStageCards(courseTitle: string, lessonsCount: number) {
+function buildFallbackStages(courseTitle: string, lessonsCount: number) {
   if (!lessonsCount) {
     return [
       {
@@ -75,8 +75,27 @@ export default async function CourseDetailsPage({ params }: PageProps) {
   const course = await getCatalogCourseBySlug(id)
   if (!course || course.status !== "active") notFound()
 
-  const lessonsCount = course.lessonsCount || 0
-  const stages = buildStageCards(course.title, lessonsCount)
+  const lessonsCount = course.lessonsCount || course.lessons.length
+  const durationApprox = course.estimatedDuration || course.duration || "مدة مرنة"
+  const whatYouWillLearn = course.whatYouWillLearn.length
+    ? course.whatYouWillLearn
+    : [
+        "تحديد أولوياتك النفسية والسلوكية بوضوح.",
+        "تحويل المعرفة إلى خطوات يومية قابلة للتطبيق.",
+        "بناء نظام شخصي للاستمرار بدل الحماس المؤقت.",
+      ]
+
+  const journeyStages =
+    course.stages.length > 0
+      ? course.stages.map((stage, index) => {
+          const count = course.lessons.filter((lesson) => lesson.stageId === stage.id).length
+          return {
+            stage: `المرحلة ${index + 1}`,
+            title: count > 0 ? `${stage.title} (${count} درس)` : stage.title,
+            description: stage.description || "هذه المرحلة جزء أساسي من رحلة التعلم.",
+          }
+        })
+      : buildFallbackStages(course.title, lessonsCount)
 
   return (
     <>
@@ -94,14 +113,12 @@ export default async function CourseDetailsPage({ params }: PageProps) {
                 <PremiumBadge>رحلة تعلم رقمية</PremiumBadge>
               </div>
               <h1 className="mt-4 premium-heading-xl">{course.title}</h1>
-              <p className="mt-5 text-xl font-bold leading-9 text-primary">
-                {course.shortDescription || "ابدئي رحلة تحول عملية بإيقاع يناسبك."}
-              </p>
+              <p className="mt-5 text-xl font-bold leading-9 text-primary">{course.shortDescription || "ابدئي رحلة تحول عملية بإيقاع يناسبك."}</p>
               <p className="mt-6 max-w-3xl leading-8 text-muted-foreground">{course.description || "وصف الكورس يظهر هنا بشكل تفصيلي."}</p>
               <div className="mt-6 flex flex-wrap gap-2 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2">
                   <Clock className="h-4 w-4 text-accent" />
-                  {course.duration || "مدة مرنة"}
+                  {durationApprox}
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2">
                   <BookOpen className="h-4 w-4 text-accent" />
@@ -133,27 +150,31 @@ export default async function CourseDetailsPage({ params }: PageProps) {
         <section className="pb-8">
           <div className="container-brand space-y-5">
             <article className="premium-card">
-              <h2 className="premium-heading-md">بعد هذه الرحلة ستتمكنين من...</h2>
+              <h2 className="premium-heading-md">ماذا ستتعلمين</h2>
               <ul className="mt-4 space-y-2 text-sm leading-7 text-muted-foreground">
-                <li>تحديد أولوياتك النفسية والسلوكية بوضوح.</li>
-                <li>تطبيق خطوات عملية تحوّل الفهم إلى نتائج يومية ملموسة.</li>
-                <li>بناء نظام شخصي للاستمرار بدل الحماس المؤقت.</li>
+                {whatYouWillLearn.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </article>
 
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {stages.map((stage, index) => (
-                <CourseStageCard key={stage.stage} stage={stage.stage} title={stage.title} description={stage.description} active={index === 0} />
-              ))}
-            </div>
+            <article className="premium-card">
+              <h2 className="premium-heading-md">مراحل الكورس</h2>
+              <p className="mt-2 text-sm text-muted-foreground">رحلة تعلم متدرجة، وكل مرحلة مصممة لتقودك للمرحلة التالية بوضوح.</p>
+              <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {journeyStages.map((stage, index) => (
+                  <CourseStageCard key={`${stage.stage}-${index}`} stage={stage.stage} title={stage.title} description={stage.description} active={index === 0} />
+                ))}
+              </div>
+            </article>
 
             <div className="grid gap-5 lg:grid-cols-2">
               <article className="premium-card">
-                <h2 className="premium-heading-md">لمن صُمم هذا الكورس؟</h2>
+                <h2 className="premium-heading-md">ملخص الرحلة</h2>
                 <ul className="mt-4 space-y-2 text-sm leading-7 text-muted-foreground">
-                  <li>لمن تبحث عن مسار واضح بدل التشتت.</li>
-                  <li>لمن تريد التوازن بين الفهم العاطفي والتطبيق العملي.</li>
-                  <li>لمن تحتاج رحلة تعلم عربية راقية وسهلة المتابعة.</li>
+                  <li>عدد الدروس: {lessonsCount || "يُحدّد لاحقًا"}</li>
+                  <li>مدة تقريبية: {durationApprox}</li>
+                  <li>المحتوى الكامل يُفتح فقط بعد تأكيد الدفع من داخل حسابك.</li>
                 </ul>
               </article>
               <article className="premium-card">

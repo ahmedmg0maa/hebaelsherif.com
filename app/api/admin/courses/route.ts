@@ -3,6 +3,7 @@ import { requireAdmin, unauthorizedAdminResponse } from "@/lib/admin-session"
 import { getDocument, getFirebaseAdminErrorMessage, listDocuments, setDocument } from "@/lib/firebase/admin"
 import { normalizeGoogleDriveCoverUrl, normalizeGoogleDriveResourceUrl } from "@/lib/google-drive"
 import { trackServerEvent } from "@/lib/analytics"
+import { toSlug } from "@/lib/course-journey"
 
 export const runtime = "nodejs"
 
@@ -21,46 +22,98 @@ function asStatus(value: unknown): "active" | "draft" | "hidden" {
   return "active"
 }
 
-function toSlug(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\u0600-\u06FF\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-}
-
 function asBoolean(value: unknown) {
   return value === true
 }
 
-function normalizeLessons(value: unknown, courseId: string) {
+function isValidHttpsUrl(value: string) {
+  const raw = asText(value)
+  if (!raw) return false
+  try {
+    const parsed = new URL(raw)
+    return parsed.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+function normalizeStages(value: unknown) {
   if (!Array.isArray(value)) return undefined
 
+  const stages = value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") return null
+      const raw = item as Record<string, unknown>
+      const stageId = toSlug(asText(raw.id) || `stage-${index + 1}`)
+      const title = asText(raw.title)
+      if (!stageId || !title) return null
+
+      return {
+        id: stageId,
+        title,
+        description: asText(raw.description),
+        order: asNumber(raw.order) || index + 1,
+      }
+    })
+    .filter(Boolean) as Array<{ id: string; title: string; description: string; order: number }>
+
+  if (!stages.length) return []
+  return stages.sort((a, b) => (a.order !== b.order ? a.order - b.order : a.title.localeCompare(b.title, "ar")))
+}
+
+function normalizeLessons(value: unknown, courseId: string, stageIds: Set<string>) {
+  if (!Array.isArray(value)) return { lessons: undefined as undefined | Array<Record<string, unknown>>, invalidUrl: false }
+
+  let invalidUrl = false
   const lessons = value
     .map((item, index) => {
       if (!item || typeof item !== "object") return null
       const raw = item as Record<string, unknown>
       const lessonId = toSlug(asText(raw.id) || `${courseId}-lesson-${index + 1}`)
       const title = asText(raw.title)
-      const contentUrl = normalizeGoogleDriveResourceUrl(asText(raw.contentUrl || raw.videoUrl))
-      if (!lessonId || !title || !contentUrl) return null
+      const normalizedContentUrl = normalizeGoogleDriveResourceUrl(asText(raw.contentUrl || raw.videoUrl))
+      const normalizedResourceUrl = normalizeGoogleDriveResourceUrl(asText(raw.resourceUrl))
+      const stageId = toSlug(asText(raw.stageId))
+      if (!lessonId || !title || !normalizedContentUrl) return null
 
+      if (!isValidHttpsUrl(normalizedContentUrl)) {
+        invalidUrl = true
+        return null
+      }
+      if (normalizedResourceUrl && !isValidHttpsUrl(normalizedResourceUrl)) {
+        invalidUrl = true
+        return null
+      }
+
+      const canValidateStage = stageIds.size > 0
       return {
         id: lessonId,
         courseId,
+        stageId: stageId && (!canValidateStage || stageIds.has(stageId)) ? stageId : "",
         title,
         description: asText(raw.description),
-        videoUrl: normalizeGoogleDriveResourceUrl(asText(raw.videoUrl)),
-        contentUrl,
+        contentUrl: normalizedContentUrl,
+        resourceUrl: normalizedResourceUrl || "",
         duration: asText(raw.duration),
         order: asNumber(raw.order) || index + 1,
         isPreview: asBoolean(raw.isPreview),
       }
     })
-    .filter(Boolean)
+    .filter(Boolean) as Array<{
+    id: string
+    courseId: string
+    stageId: string
+    title: string
+    description: string
+    contentUrl: string
+    resourceUrl: string
+    duration: string
+    order: number
+    isPreview: boolean
+  }>
 
-  return lessons.length ? lessons : []
+  const sorted = lessons.sort((a, b) => (a.order !== b.order ? a.order - b.order : a.title.localeCompare(b.title, "ar")))
+  return { lessons: sorted.length ? sorted : [], invalidUrl }
 }
 
 export async function GET(request: Request) {
@@ -106,7 +159,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "هذا المعرف مستخدم بالفعل." }, { status: 409 })
   }
 
-  const normalizedLessons = normalizeLessons(body.lessons, id)
+  const normalizedStages = normalizeStages(body.stages)
+  const stageIds = new Set((normalizedStages || []).map((stage) => stage.id))
+  const normalizedLessonsResult = normalizeLessons(body.lessons, id, stageIds)
+  if (normalizedLessonsResult.invalidUrl) {
+    return NextResponse.json({ ok: false, message: "يوجد رابط درس غير صالح. يجب أن يبدأ الرابط بـ https://." }, { status: 400 })
+  }
+
+  const normalizedAccessUrl = normalizeGoogleDriveResourceUrl(asText(body.accessUrl))
+  if (normalizedAccessUrl && !isValidHttpsUrl(normalizedAccessUrl)) {
+    return NextResponse.json({ ok: false, message: "رابط دخول الكورس غير صالح. يجب أن يبدأ بـ https://." }, { status: 400 })
+  }
+
   const now = new Date().toISOString()
   const payload = {
     id,
@@ -119,13 +183,14 @@ export async function POST(request: Request) {
     status: asStatus(body.status),
     lessonsCount: asNumber(body.lessonsCount),
     duration: asText(body.duration),
-    accessUrl: normalizeGoogleDriveResourceUrl(asText(body.accessUrl)),
+    accessUrl: normalizedAccessUrl,
     createdAt: now,
     updatedAt: now,
-    ...(normalizedLessons ? { lessons: normalizedLessons } : {}),
+    ...(normalizedStages ? { stages: normalizedStages } : {}),
+    ...(normalizedLessonsResult.lessons ? { lessons: normalizedLessonsResult.lessons } : {}),
   }
 
-  if (Array.isArray(payload.lessons) && payload.lessons.length > 0 && payload.lessonsCount === 0) {
+  if (Array.isArray(payload.lessons) && payload.lessons.length > 0) {
     payload.lessonsCount = payload.lessons.length
   }
 

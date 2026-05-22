@@ -6,6 +6,7 @@ import {
   normalizeCourseProgressState,
   resolveCourseIdentity,
   resolveCourseLessons,
+  resolveCourseStages,
 } from "@/lib/course-progress"
 import { getDocument, listDocuments, setDocument, verifyFirebaseIdToken } from "@/lib/firebase/admin"
 
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
       }
 
       const { lessons, trackingMode } = await resolveCourseLessons(course)
+      const stages = resolveCourseStages(course, lessons)
       const progressDoc =
         allProgressDocs.find((item) => text(item.courseId) === course.id) || (await getProgressDocument(user.userId, course.id))
       const progress = normalizeCourseProgressState({
@@ -122,6 +124,7 @@ export async function GET(request: NextRequest) {
           slug: course.slug,
           title: course.title,
         },
+        stages,
         lessons,
         progress,
         trackingMode,
@@ -243,6 +246,7 @@ export async function POST(request: NextRequest) {
       progressDocId,
       {
         userId: user.userId,
+        email: user.email,
         courseId: course.id,
         completedLessonIds: nextProgress.completedLessonIds,
         lastLessonId: nextProgress.lastLessonId,
