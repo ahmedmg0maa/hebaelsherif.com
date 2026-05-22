@@ -1,12 +1,15 @@
+import { parseCourseStages, type CourseStage } from "@/lib/course-journey"
 import { getDocument, listDocuments, type AdminRecord } from "@/lib/firebase/admin"
 
 export type CourseLesson = {
   id: string
   courseId: string
+  stageId?: string
   title: string
   description?: string
   videoUrl?: string
   contentUrl?: string
+  resourceUrl?: string
   duration?: string
   order: number
   isPreview?: boolean
@@ -82,10 +85,12 @@ function lessonFromArray(courseId: string, lesson: unknown, index: number): Cour
   return {
     id,
     courseId,
+    stageId: text(raw.stageId) || undefined,
     title,
     description: text(raw.description),
     videoUrl: text(raw.videoUrl),
     contentUrl,
+    resourceUrl: text(raw.resourceUrl),
     duration: text(raw.duration),
     order: numberValue(raw.order) || index + 1,
     isPreview: booleanValue(raw.isPreview),
@@ -99,10 +104,12 @@ function lessonFromDocument(courseId: string, record: AdminRecord, index: number
   return {
     id,
     courseId,
+    stageId: text(record.stageId) || undefined,
     title,
     description: text(record.description),
     videoUrl: text(record.videoUrl),
     contentUrl: text(record.contentUrl) || text(record.videoUrl),
+    resourceUrl: text(record.resourceUrl),
     duration: text(record.duration),
     order: numberValue(record.order) || index + 1,
     isPreview: booleanValue(record.isPreview),
@@ -190,6 +197,21 @@ export async function resolveCourseLessons(
   }
 
   return { lessons: [], trackingMode: "opened_course" }
+}
+
+export function resolveCourseStages(course: CourseIdentity, lessons: CourseLesson[]) {
+  const stages = parseCourseStages(course.raw.stages)
+  if (stages.length) return stages
+
+  if (!lessons.length) return []
+
+  const fallback: CourseStage = {
+    id: "main-stage",
+    title: "المحتوى الرئيسي",
+    description: "ستظهر مراحل الكورس هنا عند تنظيمها من لوحة الإدارة.",
+    order: 1,
+  }
+  return [fallback]
 }
 
 function sanitizeCompletedLessonIds(completedLessonIds: unknown, lessons: CourseLesson[]) {

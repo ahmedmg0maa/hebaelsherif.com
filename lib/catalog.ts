@@ -1,5 +1,13 @@
 import { getDocument, listDocuments, type AdminRecord } from "@/lib/firebase/admin"
 import { getProductCoverImage } from "@/lib/images"
+import {
+  buildLearningOutcomes,
+  estimateLessonsDurationText,
+  parseCourseLessons,
+  parseCourseStages,
+  type CourseLesson,
+  type CourseStage,
+} from "@/lib/course-journey"
 
 export type ProductStatus = "active" | "draft" | "hidden"
 
@@ -15,6 +23,10 @@ export type CourseProduct = {
   lessonsCount: number
   duration: string
   accessUrl?: string
+  stages: CourseStage[]
+  lessons: Array<Omit<CourseLesson, "contentUrl" | "resourceUrl">>
+  estimatedDuration: string
+  whatYouWillLearn: string[]
   createdAt?: string
   updatedAt?: string
 }
@@ -55,6 +67,21 @@ function mapCourseRecord(record: AdminRecord): CourseProduct | null {
   const title = asText(record.title)
   if (!id || !slug || !title) return null
 
+  const stages = parseCourseStages(record.stages)
+  const rawLessons = parseCourseLessons(record.lessons, id)
+  const publicLessons = rawLessons.map((lesson) => ({
+    id: lesson.id,
+    courseId: lesson.courseId,
+    stageId: lesson.stageId,
+    title: lesson.title,
+    description: lesson.description,
+    duration: lesson.duration,
+    order: lesson.order,
+    isPreview: lesson.isPreview,
+  }))
+  const lessonsCount = asNumber(record.lessonsCount) || publicLessons.length
+  const estimatedDuration = estimateLessonsDurationText(rawLessons)
+
   return {
     id,
     title,
@@ -64,9 +91,13 @@ function mapCourseRecord(record: AdminRecord): CourseProduct | null {
     price: asNumber(record.price),
     coverImageUrl: getProductCoverImage(record),
     status: asStatus(record.status),
-    lessonsCount: asNumber(record.lessonsCount),
+    lessonsCount,
     duration: asText(record.duration),
     accessUrl: asText(record.accessUrl || record.fileUrl),
+    stages,
+    lessons: publicLessons,
+    estimatedDuration,
+    whatYouWillLearn: buildLearningOutcomes(stages, rawLessons),
     createdAt: asText(record.createdAt),
     updatedAt: asText(record.updatedAt),
   }
